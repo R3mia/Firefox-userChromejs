@@ -227,7 +227,6 @@ This repository includes an [MPL-2.0 license](LICENSE). Individual scripts can a
 
 Contributions and compatibility reports are welcome: [**Open an issue**](https://github.com/R3mia/Firefox-userChromejs/issues) or submit a pull request. Include your browser version, loader, affected script, and reproduction steps.
 
-[↑ Back to top](#top)
 
 
 
