@@ -212,7 +212,7 @@ const cleanMemory_period = 2 * 60 * 1000; // 2 minutes
 # ▶️ · YTPlaybackFixer — Playback recovery & quality control
  
 </div>
-div align="center">
+<div align="center">
   
 <img width="830" height="482" alt="image" src="https://github.com/user-attachments/assets/26286503-8980-4394-9288-77be150fc02d" />
  
