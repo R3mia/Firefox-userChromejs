@@ -82,10 +82,20 @@ These are **privileged browser scripts**, not Tampermonkey/Violentmonkey scripts
 <div align="center">
     
 # 🎨 · Tab Highlight Plus</strong> — Color tabs & Zen folders
+ 
+</div>
+<div align="center">
+    
+<img width="450" height="549" alt="image" src="https://github.com/user-attachments/assets/be6c13ee-2eb0-48c9-bb85-4f7bba621298" />
+<img width="432" height="549" alt="image" src="https://github.com/user-attachments/assets/c49c150c-eeec-41c1-98d2-7cf83ae47577" />
+<img width="340" height="400" alt="image" src="https://github.com/user-attachments/assets/0f0bc5c7-2ff6-4faf-9006-9f0bc2360fef" />
+<img width="340" height="400" alt="image" src="https://github.com/user-attachments/assets/21f66b12-1559-4c72-8ab0-84934d2f8132" />
+<img width="300" height="450" alt="image" src="https://github.com/user-attachments/assets/fb149f51-f01c-4fb3-b601-23343b350ce0" />
 
 </div>
 
 **File:** [`highlightTab.uc.js`](chrome/JS/highlightTab.uc.js) · **Version:** 3.4.2
+
 
 **What it offers**
 
@@ -181,6 +191,12 @@ const cleanMemory_period = 2 * 60 * 1000; // 2 minutes
  
 </div>
 
+<div align="center">
+    
+<img width="1024" height="720" alt="image" src="https://github.com/user-attachments/assets/b854a35f-22ce-40ee-86fd-feef527fa181" />
+ 
+</div>
+
 **Files:** [`YTColors26.uc.js`](chrome/JS/YTColors26.uc.js) + [`YTColors26Child.sys.mjs`](chrome/JS/YTColors26/YTColors26Child.sys.mjs)
 
 - Colors video cards based on their upload age; includes live/upcoming categories.
@@ -195,6 +211,11 @@ const cleanMemory_period = 2 * 60 * 1000; // 2 minutes
 <div align="center">
   
 # ▶️ · YTPlaybackFixer — Playback recovery & quality control
+ 
+</div>
+div align="center">
+  
+<img width="830" height="482" alt="image" src="https://github.com/user-attachments/assets/26286503-8980-4394-9288-77be150fc02d" />
  
 </div>
 
