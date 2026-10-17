@@ -216,9 +216,11 @@ The child module retains attribution to upstream **YouTube – Playback Fixer** 
 
 </details>
 
-<details>
-<summary><strong>📜 09 · License, credits & contributions</strong></summary>
+<div align="center">
+    
+# 📜 License, credits & contributions
 
+</div>
 This repository includes an [MPL-2.0 license](LICENSE). Individual scripts can also include third-party copyright and license notices; **preserve those notices** when reusing code.
 
 **Acknowledgements:** [fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig) · [Ulf3000 / Firefox Highlight Tabs](https://github.com/Ulf3000/Firefox-Highlight-Tabs) · [garywill / firefoxtaskmonitor](https://github.com/garywill/firefoxtaskmonitor) · brizzle (YouTube Playback Fixer upstream).
@@ -227,7 +229,7 @@ Contributions and compatibility reports are welcome: [**Open an issue**](https:/
 
 [↑ Back to top](#top)
 
-</details>
+
 
 ---
 
