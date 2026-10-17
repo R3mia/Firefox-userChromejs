@@ -1,16 +1,16 @@
 
  // ==UserScript==
  // @name           Tab Highlight Plus - Zen Tabs & Folders
- // @description    In-menu Normal/Zen pickers, full/border styles, folder inheritance, HEX/RGB
- // @version        3.4
+ // @description    In-menu normal/Zen pickers, folder inheritance, full/border style, HEX/RGB
+ // @version        3.4.2
  // @include        main
  // ==/UserScript==
  (() => {
    'use strict';
-   if (window.__tabHighlightPlusV34) return;
-   window.__tabHighlightPlusV34 = true;
+   if (window.__tabHighlightPlusV342) return;
+   window.__tabHighlightPlusV342 = true;
 
-   const FONT_SIZE = '12px';
+   const FONT_SIZE = '11px';
    const TAB_KEY = 'highlighted_HT';
    const TAB_MODE_KEY = 'highlighted_HT_mode';
    const FOLDER_PREF = 'userChromeJS.tabHighlight.folderColors.v3';
@@ -19,7 +19,8 @@
    const SCOPE_PREF = 'userChromeJS.tabHighlight.folderScope.v3_1';
    const CUSTOM_PREF = 'userChromeJS.tabHighlight.lastCustomColor';
    const QUICK_COLOR = '#C5DE92';
-   const STYLE_ID = 'uc-th-v34-style';
+   const STYLE_ID = 'uc-th-v342-style';
+
    const XUL = tag => document.createXULElement(tag);
    const HTML = tag => document.createElementNS(
      'http://www.w3.org/1999/xhtml',
@@ -40,12 +41,13 @@
    let SS;
 
    try {
-     SS = window.SessionStore || ChromeUtils.importESModule(
-       'resource:///modules/sessionstore/SessionStore.sys.mjs'
-     ).SessionStore;
+     SS = window.SessionStore ||
+       ChromeUtils.importESModule(
+         'resource:///modules/sessionstore/SessionStore.sys.mjs'
+       ).SessionStore;
    } catch (error) {
      console.error(
-       '[Tab Highlight Plus] SessionStore unavailable',
+       '[Tab Highlight Plus] SessionStore unavailable:',
        error
      );
      return;
@@ -62,22 +64,24 @@
    function prefSet(key, value) {
      try {
        Services.prefs.setStringPref(key, value);
-     } catch (e) {
+     } catch (error) {
        console.warn(
-         '[Tab Highlight Plus] Preference save:',
-         e
+         '[Tab Highlight Plus] Pref save:',
+         error
        );
      }
    }
 
-   const modeOf = value =>
-     value === 'border' ? 'border' : 'full';
+   const modeOf = mode =>
+     mode === 'border' ? 'border' : 'full';
 
-   const scopeOf = value =>
-     value === 'header' ? 'header' : 'all';
+   const scopeOf = scope =>
+     scope === 'header' ? 'header' : 'all';
 
    const defaultMode = type => modeOf(prefGet(
-     type === 'folder' ? FOLDER_MODE_PREF : TAB_MODE_PREF,
+     type === 'folder'
+       ? FOLDER_MODE_PREF
+       : TAB_MODE_PREF,
      'full'
    ));
 
@@ -94,7 +98,7 @@
 
      if (match) {
        const hex = match[1].length === 3
-         ? [...match[1]].map(c => c + c).join('')
+         ? [...match[1]].map(ch => ch + ch).join('')
          : match[1];
 
        return '#' + hex.toUpperCase();
@@ -105,12 +109,12 @@
 
      if (!match) return null;
 
-     const numbers = match.slice(1).map(Number);
+     const nums = match.slice(1).map(Number);
 
-     if (numbers.some(n => n > 255)) return null;
+     if (nums.some(num => num > 255)) return null;
 
-     return '#' + numbers
-       .map(n => n.toString(16).padStart(2, '0'))
+     return '#' + nums
+       .map(num => num.toString(16).padStart(2, '0'))
        .join('')
        .toUpperCase();
    }
@@ -120,17 +124,20 @@
        i => parseInt(hex.slice(i, i + 2), 16) / 255
      );
 
-     const c = rgb.map(n =>
+     const linear = rgb.map(n =>
        n <= .04045
          ? n / 12.92
          : ((n + .055) / 1.055) ** 2.4
      );
 
-     return (
-       c[0] * .2126 +
-       c[1] * .7152 +
-       c[2] * .0722 < .179
-     ) ? '#FFFFFF' : '#101820';
+     const lum =
+       linear[0] * .2126 +
+       linear[1] * .7152 +
+       linear[2] * .0722;
+
+     return lum < .179
+       ? '#FFFFFF'
+       : '#101820';
    }
 
    function hsvHex(h, s, v) {
@@ -138,8 +145,11 @@
        const k = (n + h / 60) % 6;
 
        return Math.round(
-         (v - v * s * Math.max(Math.min(k, 4 - k, 1), 0))
-         * 255
+         (
+           v -
+           v * s *
+           Math.max(Math.min(k, 4 - k, 1), 0)
+         ) * 255
        );
      };
 
@@ -156,17 +166,17 @@
 
      const max = Math.max(r, g, b);
      const min = Math.min(r, g, b);
-     const delta = max - min;
+     const d = max - min;
 
      let h = 0;
 
-     if (delta > 0) {
+     if (d) {
        if (max === r) {
-         h = ((g - b) / delta) % 6;
+         h = ((g - b) / d) % 6;
        } else if (max === g) {
-         h = (b - r) / delta + 2;
+         h = (b - r) / d + 2;
        } else {
-         h = (r - g) / delta + 4;
+         h = (r - g) / d + 4;
        }
 
        h = (h * 60 + 360) % 360;
@@ -174,29 +184,29 @@
 
      return {
        h,
-       s: max ? delta / max : 0,
+       s: max ? d / max : 0,
        v: max
      };
    }
 
-   function attr(element, name, value) {
-     if (element.getAttribute(name) !== value) {
-       element.setAttribute(name, value);
+   function attr(el, name, value) {
+     if (el.getAttribute(name) !== value) {
+       el.setAttribute(name, value);
      }
    }
 
-   function delAttr(element, name) {
-     if (element.hasAttribute(name)) {
-       element.removeAttribute(name);
+   function delAttr(el, name) {
+     if (el.hasAttribute(name)) {
+       el.removeAttribute(name);
      }
    }
 
-   function css(element, name, value, priority = '') {
+   function css(el, name, value, priority = '') {
      if (
-       element.style.getPropertyValue(name) !== value ||
-       element.style.getPropertyPriority(name) !== priority
+       el.style.getPropertyValue(name) !== value ||
+       el.style.getPropertyPriority(name) !== priority
      ) {
-       element.style.setProperty(
+       el.style.setProperty(
          name,
          value,
          priority
@@ -205,7 +215,6 @@
    }
 
    const restoredTabs = new WeakSet();
-
    let refreshPending = false;
 
    function scheduleRefresh() {
@@ -228,7 +237,6 @@
      if (!tab?.matches?.('.tabbrowser-tab')) return;
 
      const hex = color ? normalizeColor(color) : null;
-
      if (color && !hex) return;
 
      if (hex) {
@@ -254,10 +262,10 @@
            SS.deleteCustomTabValue(tab, TAB_KEY);
            SS.deleteCustomTabValue(tab, TAB_MODE_KEY);
          }
-       } catch (e) {
+       } catch (error) {
          console.warn(
            '[Tab Highlight Plus] Save tab:',
-           e
+           error
          );
        }
      }
@@ -297,14 +305,14 @@
 
    function loadFolderData() {
      try {
-       const obj = JSON.parse(
+       const data = JSON.parse(
          prefGet(FOLDER_PREF, '{}')
        );
 
-       return obj &&
-         typeof obj === 'object' &&
-         !Array.isArray(obj)
-           ? obj
+       return data &&
+         typeof data === 'object' &&
+         !Array.isArray(data)
+           ? data
            : {};
      } catch {
        return {};
@@ -349,7 +357,6 @@
      ) return;
 
      const hex = color ? normalizeColor(color) : null;
-
      if (color && !hex) return;
 
      if (hex) {
@@ -362,17 +369,12 @@
        delete folderData[folder.id];
      }
 
-     prefSet(
-       FOLDER_PREF,
-       JSON.stringify(folderData)
-     );
-
+     prefSet(FOLDER_PREF, JSON.stringify(folderData));
      scheduleRefresh();
    }
 
    function parentFolder(item) {
      const seen = new Set();
-
      let group = item?.group || null;
 
      while (group && !seen.has(group)) {
@@ -385,7 +387,8 @@
          return group;
        }
 
-       group = group.group ||
+       group =
+         group.group ||
          group.parentElement?.closest?.('zen-folder') ||
          null;
      }
@@ -404,7 +407,8 @@
        }
      } catch {}
 
-     const container = folder.groupContainer ||
+     const container =
+       folder.groupContainer ||
        folder.querySelector(
          ':scope > .tab-group-container'
        );
@@ -419,10 +423,14 @@
        delAttr(tab, 'uc-th-mode');
        delAttr(tab, 'uc-th-source');
 
-       tab.style.removeProperty('--uc-th-color');
-       tab.style.removeProperty('--uc-th-foreground');
-       tab.style.removeProperty('background-color');
-       tab.style.removeProperty('border-radius');
+       for (const property of [
+         '--uc-th-color',
+         '--uc-th-foreground',
+         'background-color',
+         'border-radius'
+       ]) {
+         tab.style.removeProperty(property);
+       }
 
        return;
      }
@@ -479,11 +487,7 @@
        modeOf(setting.mode)
      );
 
-     css(
-       folder,
-       '--uc-fh-color',
-       setting.color
-     );
+     css(folder, '--uc-fh-color', setting.color);
 
      css(
        folder,
@@ -531,10 +535,10 @@
            tabSources.set(child, next);
          } else if (child.querySelectorAll) {
            child.querySelectorAll('.tabbrowser-tab')
-             .forEach(t => tabSources.set(t, next));
+             .forEach(tab => tabSources.set(tab, next));
 
            child.querySelectorAll('zen-folder')
-             .forEach(f => walk(f, next));
+             .forEach(folder => walk(folder, next));
          }
        }
      }
@@ -607,14 +611,17 @@
        displayTab(
          tab,
          inherited
-           ? { ...inherited, source: 'folder' }
+           ? {
+               ...inherited,
+               source: 'folder'
+             }
            : null
        );
      }
 
      document.documentElement.setAttribute(
        'uc-th-version',
-       '3.4'
+       '3.4.2'
      );
    }
 
@@ -629,9 +636,10 @@
        gBrowser.selectedTabs || []
      );
 
-     return selected.length > 1 && selected.includes(tab)
-       ? selected
-       : [tab];
+     return selected.length > 1 &&
+       selected.includes(tab)
+         ? selected
+         : [tab];
    }
 
    let contextFolder = null;
@@ -685,16 +693,20 @@
 
    function initialColor(target) {
      if (target?.type === 'folder') {
-       return folderSetting(target.folder)?.color ||
+       return (
+         folderSetting(target.folder)?.color ||
          normalizeColor(prefGet(CUSTOM_PREF)) ||
-         '#7C3AED';
+         '#7C3AED'
+       );
      }
 
-     return normalizeColor(
-       target?.tabs?.[0]?.getAttribute('uc-th-explicit')
-     ) ||
+     return (
+       normalizeColor(
+         target?.tabs?.[0]?.getAttribute('uc-th-explicit')
+       ) ||
        normalizeColor(prefGet(CUSTOM_PREF)) ||
-       '#7C3AED';
+       '#7C3AED'
+     );
    }
 
    function changeMode(type, mode) {
@@ -759,8 +771,7 @@
      return item;
    }
 
-   // Normal and Zen pickers share the SAME context menu.
-   function buildPickerBody(popup, type) {
+   function buildPickerBody(popup) {
      const wrapper = XUL('vbox');
      wrapper.classList.add('uc-th-ui');
 
@@ -785,19 +796,12 @@
        'uc-th-tab-button uc-th-active';
 
      zenButton.className =
-       'uc-th-tab-button uc-th-zen-button';
+       'uc-th-tab-button';
 
-     tabs.append(
-       normalButton,
-       zenButton
-     );
-
+     tabs.append(normalButton, zenButton);
      body.appendChild(tabs);
 
-     // ----------------------------------
-     // NORMAL COLOR PICKER
-     // ----------------------------------
-
+     // Normal 8x8 palette.
      const normal = HTML('div');
      normal.className = 'uc-th-normal-view';
 
@@ -819,14 +823,17 @@
 
          swatch.style.backgroundColor = color;
 
-         swatch.addEventListener('click', () => {
-           applyTo(
-             popup.__ucTHtarget,
-             color
-           );
+         swatch.addEventListener(
+           'click',
+           () => {
+             applyTo(
+               popup.__ucTHtarget,
+               color
+             );
 
-           popup.hidePopup();
-         });
+             popup.hidePopup();
+           }
+         );
 
          palette.appendChild(swatch);
        }
@@ -845,20 +852,23 @@
      nativeColor.title = 'Open browser color chooser';
      nativeColor.value = '#7C3AED';
 
-     nativeColor.addEventListener('change', () => {
-       const color = normalizeColor(
-         nativeColor.value
-       );
-
-       if (color) {
-         applyTo(
-           popup.__ucTHtarget,
-           color
+     nativeColor.addEventListener(
+       'change',
+       () => {
+         const color = normalizeColor(
+           nativeColor.value
          );
 
-         popup.hidePopup();
+         if (color) {
+           applyTo(
+             popup.__ucTHtarget,
+             color
+           );
+
+           popup.hidePopup();
+         }
        }
-     });
+     );
 
      normalExtra.append(
        nativeLabel,
@@ -867,10 +877,7 @@
 
      normal.appendChild(normalExtra);
 
-     // ----------------------------------
-     // ZEN-STYLE COLOR PICKER
-     // ----------------------------------
-
+     // Zen-style rainbow picker.
      const zen = HTML('div');
      zen.className = 'uc-th-zen-view';
      zen.hidden = true;
@@ -921,7 +928,6 @@
      brightnessLabel.textContent = 'Brightness';
 
      const brightness = HTML('input');
-
      brightness.type = 'range';
      brightness.min = '10';
      brightness.max = '100';
@@ -973,17 +979,17 @@
        actionRow
      );
 
-     body.append(
-       normal,
-       zen
-     );
+     body.append(normal, zen);
 
      let picked = '#7C3AED';
      let hue = 0;
      let sat = .9;
      let val = 1;
 
-     function setPreview(input, updateMarker = true) {
+     function setPreview(
+       input,
+       updateMarker = true
+     ) {
        const hex = normalizeColor(input);
 
        if (!hex) return;
@@ -1010,19 +1016,20 @@
          marker.style.top =
            `${Math.max(0, Math.min(100, y * 100))}%`;
 
-         brightness.value =
-           String(Math.round(val * 100));
+         brightness.value = String(
+           Math.round(val * 100)
+         );
        }
      }
 
      function pointerPick(event) {
-       const box = pad.getBoundingClientRect();
+       const rect = pad.getBoundingClientRect();
 
        const x = Math.max(
          0,
          Math.min(
            1,
-           (event.clientX - box.left) / box.width
+           (event.clientX - rect.left) / rect.width
          )
        );
 
@@ -1030,7 +1037,7 @@
          0,
          Math.min(
            1,
-           (event.clientY - box.top) / box.height
+           (event.clientY - rect.top) / rect.height
          )
        );
 
@@ -1047,8 +1054,9 @@
        marker.style.left = `${x * 100}%`;
        marker.style.top = `${y * 100}%`;
 
-       brightness.value =
-         String(Math.round(val * 100));
+       brightness.value = String(
+         Math.round(val * 100)
+       );
 
        setPreview(
          hsvHex(hue, sat, val),
@@ -1058,24 +1066,30 @@
 
      let dragging = false;
 
-     pad.addEventListener('pointerdown', event => {
-       if (event.button !== 0) return;
+     pad.addEventListener(
+       'pointerdown',
+       event => {
+         if (event.button !== 0) return;
 
-       dragging = true;
+         dragging = true;
 
-       try {
-         pad.setPointerCapture(event.pointerId);
-       } catch {}
+         try {
+           pad.setPointerCapture(event.pointerId);
+         } catch {}
 
-       pointerPick(event);
-       event.preventDefault();
-     });
-
-     pad.addEventListener('pointermove', event => {
-       if (dragging) {
          pointerPick(event);
+         event.preventDefault();
        }
-     });
+     );
+
+     pad.addEventListener(
+       'pointermove',
+       event => {
+         if (dragging) {
+           pointerPick(event);
+         }
+       }
+     );
 
      for (const event of [
        'pointerup',
@@ -1087,46 +1101,54 @@
        });
      }
 
-     brightness.addEventListener('input', () => {
-       val = Number(brightness.value) / 100;
+     brightness.addEventListener(
+       'input',
+       () => {
+         val = Number(brightness.value) / 100;
 
-       setPreview(
-         hsvHex(hue, sat, val),
-         false
-       );
-     });
-
-     hexInput.addEventListener('change', () => {
-       const candidate = normalizeColor(
-         hexInput.value
-       );
-
-       if (candidate) {
-         setPreview(candidate);
-       } else {
-         hexInput.value = picked;
+         setPreview(
+           hsvHex(hue, sat, val),
+           false
+         );
        }
-     });
+     );
 
-     apply.addEventListener('click', () => {
-       const value = normalizeColor(
-         hexInput.value
-       ) || picked;
+     hexInput.addEventListener(
+       'change',
+       () => {
+         const candidate = normalizeColor(
+           hexInput.value
+         );
 
-       applyTo(
-         popup.__ucTHtarget,
-         value
-       );
-
-       popup.hidePopup();
-     });
-
-     hexInput.addEventListener('keydown', event => {
-       if (event.key === 'Enter') {
-         event.preventDefault();
-         apply.click();
+         if (candidate) {
+           setPreview(candidate);
+         } else {
+           hexInput.value = picked;
+         }
        }
-     });
+     );
+
+     apply.addEventListener(
+       'click',
+       () => {
+         applyTo(
+           popup.__ucTHtarget,
+           normalizeColor(hexInput.value) || picked
+         );
+
+         popup.hidePopup();
+       }
+     );
+
+     hexInput.addEventListener(
+       'keydown',
+       event => {
+         if (event.key === 'Enter') {
+           event.preventDefault();
+           apply.click();
+         }
+       }
+     );
 
      back.addEventListener(
        'click',
@@ -1151,9 +1173,8 @@
          isZen
        );
 
-       // Hide ordinary menu items while Zen picker is open.
-       for (const item of extras) {
-         item.hidden = isZen;
+       for (const extra of extras) {
+         extra.hidden = isZen;
        }
      }
 
@@ -1162,15 +1183,20 @@
        () => showView('normal')
      );
 
-     zenButton.addEventListener('click', () => {
-       setPreview(
-         initialColor(popup.__ucTHtarget)
-       );
+     zenButton.addEventListener(
+       'click',
+       () => {
+         setPreview(
+           initialColor(
+             popup.__ucTHtarget
+           )
+         );
 
-       showView('zen');
-     });
+         showView('zen');
+       }
+     );
 
-     // Keep interaction inside the same XUL menu.
+     // Keep pointer interaction inside the same menu.
      for (const event of [
        'mousedown',
        'mouseup',
@@ -1194,14 +1220,19 @@
          showView('normal');
 
          setPreview(
-           initialColor(popup.__ucTHtarget)
+           initialColor(
+             popup.__ucTHtarget
+           )
          );
        }
      };
    }
 
    function buildMenu(parent, type, id) {
-     if (!parent || document.getElementById(id)) return;
+     if (
+       !parent ||
+       document.getElementById(id)
+     ) return;
 
      const menu = XUL('menu');
      menu.id = id;
@@ -1218,7 +1249,6 @@
 
      menu.appendChild(popup);
 
-     // Highlight style submenu
      const styles = XUL('menu');
      styles.setAttribute(
        'label',
@@ -1249,8 +1279,8 @@
 
      stylePopup.addEventListener(
        'popupshowing',
-       e => {
-         if (e.target !== stylePopup) return;
+       event => {
+         if (event.target !== stylePopup) return;
 
          const chosen = type === 'folder'
            ? folderSetting(contextFolder)?.mode ||
@@ -1259,10 +1289,7 @@
 
          for (const item of stylePopup.children) {
            if (item.dataset.value === chosen) {
-             item.setAttribute(
-               'checked',
-               'true'
-             );
+             item.setAttribute('checked', 'true');
            } else {
              item.removeAttribute('checked');
            }
@@ -1272,7 +1299,6 @@
 
      popup.appendChild(styles);
 
-     // Folder scope selector
      if (type === 'folder') {
        const scopes = XUL('menu');
 
@@ -1301,8 +1327,8 @@
 
        scopePopup.addEventListener(
          'popupshowing',
-         e => {
-           if (e.target !== scopePopup) return;
+         event => {
+           if (event.target !== scopePopup) return;
 
            const chosen =
              folderSetting(contextFolder)?.scope ||
@@ -1310,10 +1336,7 @@
 
            for (const item of scopePopup.children) {
              if (item.dataset.value === chosen) {
-               item.setAttribute(
-                 'checked',
-                 'true'
-               );
+               item.setAttribute('checked', 'true');
              } else {
                item.removeAttribute('checked');
              }
@@ -1328,8 +1351,7 @@
        XUL('menuseparator')
      );
 
-     // Both pickers are rendered inside this menu.
-     const picker = buildPickerBody(popup, type);
+     const picker = buildPickerBody(popup);
      popup.appendChild(picker.wrapper);
 
      const separator = XUL('menuseparator');
@@ -1340,7 +1362,6 @@
        'Custom HEX / RGB…',
        () => {
          const target = snapshot(type);
-
          const value = {
            value: initialColor(target)
          };
@@ -1348,7 +1369,7 @@
          if (!Services.prompt.prompt(
            window,
            'Custom highlight color',
-           'Enter HEX (#FF8800 or #F80) or RGB (rgb(255,136,0)): ',
+           'HEX (#FF8800) or RGB (rgb(255,136,0)):',
            value,
            null,
            { value: false }
@@ -1364,9 +1385,8 @@
            Services.prompt.alert(
              window,
              'Invalid color',
-             'Use #RGB, #RRGGBB or rgb(255,128,64).'
+             'Use #RGB, #RRGGBB, or rgb(255,128,64).'
            );
-
            return;
          }
 
@@ -1383,10 +1403,7 @@
          );
 
          if (hex) {
-           applyTo(
-             snapshot(type),
-             hex
-           );
+           applyTo(snapshot(type), hex);
          }
        }
      );
@@ -1408,25 +1425,28 @@
        remove
      ]);
 
-     popup.addEventListener('popupshowing', e => {
-       if (e.target !== popup) return;
+     popup.addEventListener(
+       'popupshowing',
+       event => {
+         if (event.target !== popup) return;
 
-       popup.__ucTHtarget = snapshot(type);
-       picker.reset();
+         popup.__ucTHtarget = snapshot(type);
+         picker.reset();
 
-       const recent = normalizeColor(
-         prefGet(CUSTOM_PREF)
-       );
+         const recent = normalizeColor(
+           prefGet(CUSTOM_PREF)
+         );
 
-       reuse.disabled = !recent;
+         reuse.disabled = !recent;
 
-       reuse.setAttribute(
-         'label',
-         recent
-           ? `Reuse custom: ${recent}`
-           : 'Reuse last custom color'
-       );
-     });
+         reuse.setAttribute(
+           'label',
+           recent
+             ? `Reuse custom: ${recent}`
+             : 'Reuse last custom color'
+         );
+       }
+     );
 
      const anchor = document.getElementById(
        type === 'folder'
@@ -1463,28 +1483,32 @@
        'uc-th-folder-menu'
      );
 
-     if (popup.__ucTHV34Ready) return;
+     if (popup.__ucTHV341Ready) return;
 
-     popup.__ucTHV34Ready = true;
+     popup.__ucTHV341Ready = true;
 
-     popup.addEventListener('popupshowing', event => {
-       if (event.target !== popup) return;
+     popup.addEventListener(
+       'popupshowing',
+       event => {
+         if (event.target !== popup) return;
 
-       const candidate = popup.triggerNode
-         ?.closest?.('zen-folder');
+         const candidate = popup.triggerNode
+           ?.closest?.('zen-folder');
 
-       if (candidate) {
-         contextFolder = candidate;
+         if (candidate) {
+           contextFolder = candidate;
+         }
+
+         const menu = document.getElementById(
+           'uc-th-folder-menu'
+         );
+
+         if (menu) {
+           menu.hidden =
+             !contextFolder?.isConnected;
+         }
        }
-
-       const menu = document.getElementById(
-         'uc-th-folder-menu'
-       );
-
-       if (menu) {
-         menu.hidden = !contextFolder?.isConnected;
-       }
-     });
+     );
    }
 
    function addStyles() {
@@ -1494,7 +1518,6 @@
      style.id = STYLE_ID;
 
      style.textContent = `
-       /* Smaller sidebar fonts */
        .tabbrowser-tab .tab-label,
        .tabbrowser-tab .tab-text,
        zen-folder > .tab-group-label-container > .tab-group-label {
@@ -1502,7 +1525,6 @@
          font-weight: 500 !important;
        }
 
-       /* Tab highlighting */
        .tabbrowser-tab[uc-th-mode] .tab-background {
          border-radius: 6px !important;
        }
@@ -1527,7 +1549,6 @@
          box-shadow: inset 0 0 0 1px var(--uc-th-color) !important;
        }
 
-       /* Zen folder highlighting */
        zen-folder[uc-th-folder-mode="full"]
        > .tab-group-label-container {
          background: var(--uc-fh-color) !important;
@@ -1550,7 +1571,6 @@
          opacity: 1 !important;
        }
 
-       /* Menu sizing */
        .uc-th-popup {
          min-width: 0 !important;
        }
@@ -1573,67 +1593,101 @@
          display: none !important;
        }
 
-       /* Picker switching buttons */
+       /* Equal, transparent picker buttons */
        .uc-th-picker-tabs {
-         display: grid;
-         grid-template-columns: 1fr 1fr;
-         gap: 6px;
-         margin-bottom: 8px;
+         display: grid !important;
+         grid-template-columns:
+           repeat(2, minmax(0, 1fr)) !important;
+         align-items: stretch !important;
+         gap: 6px !important;
+         width: 100% !important;
+         padding: 0 !important;
+         margin: 0 0 8px !important;
+         box-sizing: border-box !important;
        }
 
-       .uc-th-tab-button {
-         height: 27px;
-         padding: 2px 4px;
-         min-width: 0;
-         border-radius: 5px;
-         border: 1px solid #888;
-         background: #383838;
-         color: #ddd;
-         font-size: 10px;
-         cursor: pointer;
+       .uc-th-body .uc-th-tab-button {
+         appearance: none !important;
+         -moz-appearance: none !important;
+         box-sizing: border-box !important;
+
+         display: flex !important;
+         align-items: center !important;
+         justify-content: center !important;
+
+         width: 100% !important;
+         min-width: 0 !important;
+         max-width: none !important;
+
+         height: 30px !important;
+         min-height: 30px !important;
+         max-height: 30px !important;
+
+         padding: 0 4px !important;
+         margin: 0 !important;
+
+         border: 1px solid #777 !important;
+         border-radius: 8px !important;
+
+         background: transparent !important;
+         background-color: transparent !important;
+         background-image: none !important;
+
+         box-shadow: none !important;
+         text-shadow: none !important;
+
+         color: #e3e3e3 !important;
+         font: 600 10px/1 system-ui, sans-serif !important;
+
+         text-align: center !important;
+         white-space: nowrap !important;
+         cursor: pointer !important;
+         outline-offset: -2px !important;
        }
 
-       .uc-th-tab-button.uc-th-active {
-         border-color: #fff;
-         color: #fff;
-         box-shadow: inset 0 0 0 1px #fff8;
+       .uc-th-body .uc-th-tab-button:hover {
+         background: transparent !important;
+         border-color: #ccc !important;
        }
 
-       .uc-th-tab-button:first-child {
-         background: linear-gradient(
-           115deg,
-           #d9364b,
-           #e87957
-         );
+       .uc-th-body .uc-th-tab-button.uc-th-active {
+         background: transparent !important;
+         background-image: none !important;
+         border-color: #f0f0f0 !important;
+         color: #fff !important;
+         box-shadow:
+           inset 0 0 0 1px #f0f0f0 !important;
        }
 
-       .uc-th-zen-button {
-         background: linear-gradient(
-           110deg,
-           #f56e79,
-           #e9c865,
-           #4adb9e,
-           #5c96e7,
-           #b77fe6
-         );
+       .uc-th-body .uc-th-tab-button:focus-visible {
+         outline: 1px solid #c6d4ff !important;
        }
 
-       /* Normal 8x8 color grid */
+       /*
+        * V3.4.2 FIX
+        * Fill the full menu width with 8 equal columns.
+        */
        .uc-th-grid {
-         display: grid;
-         grid-template-columns: repeat(8, 20px);
-         gap: 4px;
-         padding: 0 1px;
+         display: grid !important;
+         grid-template-columns:
+           repeat(8, minmax(0, 1fr)) !important;
+         gap: 4px !important;
+         width: 100% !important;
+         box-sizing: border-box !important;
+         padding: 0 !important;
        }
 
        .uc-th-swatch {
-         width: 20px;
-         height: 20px;
-         min-width: 20px;
+         appearance: none !important;
+         display: block;
+         width: 100% !important;
+         min-width: 0 !important;
+         height: 22px;
          box-sizing: border-box;
          padding: 0;
+         margin: 0;
          border: 1px solid #777;
-         border-radius: 3px;
+         border-radius: 6px;
          cursor: pointer;
        }
 
@@ -1656,12 +1710,11 @@
          width: 55px;
          padding: 0;
          border: 1px solid #888;
-         border-radius: 4px;
+         border-radius: 6px;
          background: #222;
          cursor: pointer;
        }
 
-       /* Zen rainbow picker */
        .uc-th-zen-view {
          width: 100%;
        }
@@ -1672,9 +1725,10 @@
          height: 153px;
          box-sizing: border-box;
          border: 1px solid #aaa;
-         border-radius: 8px;
+         border-radius: 9px;
          cursor: crosshair;
          touch-action: none;
+
          background:
            linear-gradient(
              to bottom,
@@ -1699,17 +1753,19 @@
          left: 50%;
          top: 50%;
          transform: translate(-50%,-50%);
+
          width: 14px;
          height: 14px;
          border-radius: 50%;
          border: 3px solid #fff;
+
          box-shadow:
            0 0 0 1px #111,
            0 1px 5px #0009;
+
          pointer-events: none;
        }
 
-       /* Circular color presets */
        .uc-th-chips {
          display: flex;
          justify-content: space-between;
@@ -1731,7 +1787,6 @@
          outline: 2px solid #fff;
        }
 
-       /* Brightness */
        .uc-th-brightness {
          display: flex;
          align-items: center;
@@ -1745,7 +1800,6 @@
          accent-color: #bfb1fa;
        }
 
-       /* HEX/RGB input */
        .uc-th-value-row {
          display: flex;
          align-items: center;
@@ -1767,13 +1821,12 @@
          flex: 1;
          padding: 5px;
          border: 1px solid #777;
-         border-radius: 4px;
+         border-radius: 5px;
          background: #1b1b1b;
          color: #fff;
          font: 11px monospace;
        }
 
-       /* Action buttons */
        .uc-th-actions {
          display: grid;
          grid-template-columns: 1fr 1fr;
@@ -1784,7 +1837,7 @@
        .uc-th-actions button {
          height: 28px;
          border: 1px solid #777;
-         border-radius: 4px;
+         border-radius: 6px;
          background: #444;
          color: #eee;
          cursor: pointer;
@@ -1813,28 +1866,31 @@
 
      const tabs = gBrowser.tabContainer;
 
-     // Alt + left click quick highlight
-     tabs.addEventListener('mousedown', event => {
-       if (
-         event.button !== 0 ||
-         !event.altKey
-       ) return;
+     tabs.addEventListener(
+       'mousedown',
+       event => {
+         if (
+           event.button !== 0 ||
+           !event.altKey
+         ) return;
 
-       const tab = event.target.closest?.(
-         '.tabbrowser-tab'
-       );
+         const tab = event.target.closest?.(
+           '.tabbrowser-tab'
+         );
 
-       if (!tab) return;
+         if (!tab) return;
 
-       colorTab(
-         tab,
-         tab.getAttribute('uc-th-explicit') === QUICK_COLOR
-           ? null
-           : QUICK_COLOR
-       );
-     });
+         colorTab(
+           tab,
+           tab.getAttribute(
+             'uc-th-explicit'
+           ) === QUICK_COLOR
+             ? null
+             : QUICK_COLOR
+         );
+       }
+     );
 
-     // Remember the folder that was right-clicked
      tabs.addEventListener(
        'contextmenu',
        event => {
@@ -1854,7 +1910,6 @@
        true
      );
 
-     // Session restoration
      for (const event of [
        'SSTabRestoring',
        'SSTabRestored',
@@ -1879,29 +1934,30 @@
        }
      );
 
-     // Detect added/moved tabs and folders
-     const observer = new MutationObserver(records => {
-       for (const record of records) {
-         for (const node of [
-           ...record.addedNodes,
-           ...record.removedNodes
-         ]) {
-           if (node.nodeType !== 1) continue;
+     const observer = new MutationObserver(
+       records => {
+         for (const record of records) {
+           for (const node of [
+             ...record.addedNodes,
+             ...record.removedNodes
+           ]) {
+             if (node.nodeType !== 1) continue;
 
-           if (
-             node.matches?.(
-               'zen-folder,.tabbrowser-tab'
-             ) ||
-             node.querySelector?.(
-               'zen-folder,.tabbrowser-tab'
-             )
-           ) {
-             scheduleRefresh();
-             return;
+             if (
+               node.matches?.(
+                 'zen-folder,.tabbrowser-tab'
+               ) ||
+               node.querySelector?.(
+                 'zen-folder,.tabbrowser-tab'
+               )
+             ) {
+               scheduleRefresh();
+               return;
+             }
            }
          }
        }
-     });
+     );
 
      observer.observe(tabs, {
        childList: true,
@@ -1931,7 +1987,7 @@
      }
 
      console.log(
-       '[Tab Highlight Plus] v3.4 in-menu Normal/Zen picker ready'
+       '[Tab Highlight Plus] v3.4.2 full-width color palette ready'
      );
    }
 
