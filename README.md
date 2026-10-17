@@ -130,7 +130,7 @@ To duplicate **in the background**, use the alternative `gBrowser.duplicateTab(t
 <a id="extreme-memory"></a>
 <div align="center">
     
-# 🧠 · Extreme Memory Controller — Idle tab management
+# 🧠 · Extreme Memory Controller — Idle tab management *OBSOLETE*
 
 </div>
 
