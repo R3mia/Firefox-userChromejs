@@ -22,7 +22,7 @@ A collection of browser-chrome customizations for **Firefox** and **Zen Browser*
 
 ### Choose a script
 
-| Category | Script | In one sentence |
+| Category | Script | Description |
 |:--|:--|:--|
 | 🎨 Appearance | [**Tab Highlight Plus**](#tab-highlight) | Color tabs, Zen folders, and their contents. |
 | 🖱️ Tabs | [**Double Click Duplicate Tab**](#duplicate-tab) | Double-click a tab to duplicate it. |
@@ -34,8 +34,11 @@ A collection of browser-chrome customizations for **Firefox** and **Zen Browser*
 ---
 
 <a id="install"></a>
-<details>
-<summary><strong>🚀 01 · Getting started</strong> — Requirements & installation</summary>
+<div align="center">
+    
+# 🚀 · Getting started</strong> — Requirements & installation
+
+</div>
 
 #### What you need
 
@@ -72,12 +75,15 @@ These are **privileged browser scripts**, not Tampermonkey/Violentmonkey scripts
 
 [↑ Back to top](#top)
 
-</details>
 
 <a id="appearance"></a>
 <a id="tab-highlight"></a>
-<details>
-<summary><strong>🎨 02 · Tab Highlight Plus</strong> — Color tabs & Zen folders</summary>
+
+<div align="center">
+    
+# 🎨 · Tab Highlight Plus</strong> — Color tabs & Zen folders
+
+</div>
 
 **File:** [`highlightTab.uc.js`](chrome/JS/highlightTab.uc.js) · **Version:** 3.4.2
 
@@ -102,11 +108,13 @@ Folder inheritance uses Zen-specific internals, so it may be affected by browser
 
 [↑ Back to top](#top)
 
-</details>
-
 <a id="duplicate-tab"></a>
-<details>
-<summary><strong>🖱️ 03 · Double Click Duplicate Tab</strong> — Faster tab duplication</summary>
+
+<div align="center">
+    
+# 🖱️· Double Click Duplicate Tab — Faster tab duplication
+
+</div>
 
 **File:** [`dblclickDuplicateTab.uc.js`](chrome/JS/dblclickDuplicateTab.uc.js) · **Version:** 1.0
 
@@ -116,12 +124,15 @@ To duplicate **in the background**, use the alternative `gBrowser.duplicateTab(t
 
 [↑ Back to top](#top)
 
-</details>
+
 
 <a id="memory"></a>
 <a id="extreme-memory"></a>
-<details>
-<summary><strong>🧠 04 · Extreme Memory Controller</strong> — Idle tab management</summary>
+<div align="center">
+    
+# 🧠 · Extreme Memory Controller — Idle tab management
+
+</div>
 
 **File:** [`extreme-memory-controller.uc.js`](chrome/JS/extreme-memory-controller.uc.js) · **Version:** 34.3
 
@@ -141,11 +152,13 @@ Monitors tab activity, detects audio/Picture-in-Picture, attempts suspension, di
 
 [↑ Back to top](#top)
 
-</details>
 
 <a id="periodic-memory"></a>
-<details>
-<summary><strong>🧹 05 · Periodic Memory Cleaner</strong> — Simple timed cleanup</summary>
+<div align="center">
+    
+# 🧹 · Periodic Memory Cleaner — Simple timed cleanup
+ 
+</div>
 
 **File:** [`Periodically_clean_Firefox_memory.js`](chrome/JS/Periodically_clean_Firefox_memory.js)
 
@@ -159,12 +172,14 @@ const cleanMemory_period = 2 * 60 * 1000; // 2 minutes
 
 [↑ Back to top](#top)
 
-</details>
 
 <a id="youtube"></a>
 <a id="yt-colors"></a>
-<details>
-<summary><strong>🌈 06 · YTColors26</strong> — YouTube age-based video borders</summary>
+<div align="center">
+  
+# 🌈 · YTColors26 — YouTube age-based video borders
+ 
+</div>
 
 **Files:** [`YTColors26.uc.js`](chrome/JS/YTColors26.uc.js) + [`YTColors26Child.sys.mjs`](chrome/JS/YTColors26/YTColors26Child.sys.mjs)
 
@@ -176,11 +191,12 @@ const cleanMemory_period = 2 * 60 * 1000; // 2 minutes
 
 [↑ Back to top](#top)
 
-</details>
-
 <a id="yt-playback"></a>
-<details>
-<summary><strong>▶️ 07 · YTPlaybackFixer</strong> — Playback recovery & quality control</summary>
+<div align="center">
+  
+# ▶️ · YTPlaybackFixer — Playback recovery & quality control
+ 
+</div>
 
 **Files:** [`YTPlaybackFixer.uc.js`](chrome/JS/YTPlaybackFixer.uc.js) + [`YTPlaybackFixerChild.sys.mjs`](chrome/JS/YTPlaybackFixer/YTPlaybackFixerChild.sys.mjs)
 
@@ -195,11 +211,14 @@ The child module retains attribution to upstream **YouTube – Playback Fixer** 
 
 [↑ Back to top](#top)
 
-</details>
+
 
 <a id="help"></a>
-<details>
-<summary><strong>🛠️ 08 · Troubleshooting</strong> — Common fixes</summary>
+<div align="center">
+  
+# 🛠️ · Troubleshooting — Common fixes
+ 
+</div>
 
 | Problem | First thing to check |
 |:--|:--|
@@ -214,11 +233,9 @@ The child module retains attribution to upstream **YouTube – Playback Fixer** 
 
 [↑ Back to top](#top)
 
-</details>
-
 <div align="center">
     
-# 📜 License, credits & contributions
+# 📜· License, credits & contributions
 
 </div>
 This repository includes an [MPL-2.0 license](LICENSE). Individual scripts can also include third-party copyright and license notices; **preserve those notices** when reusing code.
