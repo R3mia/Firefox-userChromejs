@@ -86,11 +86,11 @@ These are **privileged browser scripts**, not Tampermonkey/Violentmonkey scripts
 </div>
 
     
-<img width="410" height="549" alt="image" src="https://github.com/user-attachments/assets/be6c13ee-2eb0-48c9-bb85-4f7bba621298" />
-<img width="412" height="549" alt="image" src="https://github.com/user-attachments/assets/c49c150c-eeec-41c1-98d2-7cf83ae47577" />
-<img width="300" height="400" alt="image" src="https://github.com/user-attachments/assets/0f0bc5c7-2ff6-4faf-9006-9f0bc2360fef" />
-<img width="300" height="400" alt="image" src="https://github.com/user-attachments/assets/21f66b12-1559-4c72-8ab0-84934d2f8132" />
-<img width="300" height="450" alt="image" src="https://github.com/user-attachments/assets/fb149f51-f01c-4fb3-b601-23343b350ce0" />
+<img width="390" height="549" alt="image" src="https://github.com/user-attachments/assets/be6c13ee-2eb0-48c9-bb85-4f7bba621298" />
+<img width="390" height="549" alt="image" src="https://github.com/user-attachments/assets/c49c150c-eeec-41c1-98d2-7cf83ae47577" />
+<img width="280" height="400" alt="image" src="https://github.com/user-attachments/assets/0f0bc5c7-2ff6-4faf-9006-9f0bc2360fef" />
+<img width="280" height="400" alt="image" src="https://github.com/user-attachments/assets/21f66b12-1559-4c72-8ab0-84934d2f8132" />
+<img width="280" height="450" alt="image" src="https://github.com/user-attachments/assets/fb149f51-f01c-4fb3-b601-23343b350ce0" />
 
 
 **File:** [`highlightTab.uc.js`](chrome/JS/highlightTab.uc.js) · **Version:** 3.4.2
