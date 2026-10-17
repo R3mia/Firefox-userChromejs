@@ -1,164 +1,253 @@
 
-# Tab Highlight Plus 🎨
+# 🦊 Firefox userChromeJS
 
-**Tab Highlight Plus** is a `userChrome.js` script for [Zen Browser](https://zen-browser.app/) that lets you highlight **tabs, folders, and tabs inside folders** using customizable colors.
+**A collection of Firefox and Zen Browser UI tweaks, tab tools, memory utilities, and YouTube enhancements.** Built for browser-chrome JavaScript loaders such as [fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig).
 
-Pick from a compact 64-color palette, a browser-native color chooser, or a Zen-inspired gradient picker—all from the tab or folder context menu. Choose between **full-background** and **border-only** highlighting, and keep your colors across browser restarts.
+**[Browse scripts](chrome/JS) · [Report an issue](https://github.com/R3mia/Firefox-userChromejs/issues) · [License](LICENSE)**
 
-> [!NOTE]
-> This is an unofficial browser-chrome customization, not a regular website userscript or a Zen Browser built-in feature. It depends on internal Firefox/Zen UI elements and may need updates when the browser changes.
+> Click any section below to expand it. **Every section starts closed.**
 
-## Features
+---
 
-- **64 preset colors** in a compact, full-width **8 × 8 grid**.
-- **Two picker views in the same menu**:
-  - **Normal picker:** preset swatches and the browser's native color input.
-  - **Zen picker:** rainbow gradient, draggable selection circle, round presets, brightness slider, and HEX/RGB input.
-- **Two highlight styles:** full background or border only.
-- **Zen folder highlighting:** color only the folder header, or apply the folder color to its tabs and nested subfolders.
-- **Individual tab overrides:** an explicitly colored tab keeps its own color even inside a colored folder.
-- **Multi-tab support:** highlight multiple selected tabs together.
-- **Automatic text contrast** for full-background highlights.
-- **Smaller sidebar labels** (11px by default).
-- **Alt + left-click** a tab to toggle a quick highlight.
-- **Saved colors:** tab highlights are stored using Firefox SessionStore; folder highlights are saved using Zen folder IDs.
+<details>
+<summary><strong>📚 Script overview</strong></summary>
 
-## Requirements
+| Script | What it does | Platform |
+| --- | --- | --- |
+| [dblclickDuplicateTab.uc.js](chrome/JS/dblclickDuplicateTab.uc.js) | Double-click a tab to duplicate it and switch to the copy. | Firefox / Zen |
+| [highlightTab.uc.js](chrome/JS/highlightTab.uc.js) | Color tabs and Zen folders with a compact palette and two color pickers. | Firefox / Zen; folder tools require Zen |
+| [extreme-memory-controller.uc.js](chrome/JS/extreme-memory-controller.uc.js) | Monitor inactive tabs, attempt suspension/discard, and request periodic memory cleanup. | Firefox / Zen (experimental) |
+| [Periodically_clean_Firefox_memory.js](chrome/JS/Periodically_clean_Firefox_memory.js) | Request Firefox memory minimization at a configurable interval. | Firefox / Zen (legacy script) |
+| [YTColors26.uc.js](chrome/JS/YTColors26.uc.js) | Add age-based video borders, old-video dimming, and a subscriptions marker on YouTube. | YouTube in Firefox / Zen |
+| [YTPlaybackFixer.uc.js](chrome/JS/YTPlaybackFixer.uc.js) | Attempt YouTube playback recovery and expose preferred-quality controls. | YouTube in Firefox / Zen (experimental) |
 
-- **Zen Browser** (the folder features are Zen-specific).
-- A working **fx-autoconfig / userChrome.js loader** that runs `.uc.js` files in the browser's main chrome window, such as [MrOtherGuy/fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig).
+**Each script is optional.** Install only what you need. The YouTube scripts require their corresponding `.sys.mjs` files (see Installation).
+
+</details>
+
+<details>
+<summary><strong>🧩 Requirements and compatibility</strong></summary>
+
+- Firefox or **Zen Browser** with a working **browser-chrome JavaScript loader**, for example [MrOtherGuy/fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig).
+- Access to your browser's profile directory (`about:support` → **Profile Folder** → **Open Folder**).
+- A loader configuration that loads scripts from `chrome/JS/` (or the path specified by your own loader).
+- For **YTColors26** and **YTPlaybackFixer**, the loader must also expose child modules at the `chrome://userscripts/content/` paths referenced in the scripts.
 
 > [!IMPORTANT]
-> This script is **not** for Tampermonkey or Violentmonkey. It modifies the browser interface, not webpage content.
+> These are **privileged browser UI scripts**, not Tampermonkey/Violentmonkey webpage userscripts. Firefox/Zen internals change over time, and the scripts have **not** been verified against every version, theme, or operating system.
 
-## Installation
+</details>
 
-1. Set up [fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig) or another compatible `userChrome.js` loader, following its own installation instructions.
-2. In Zen, open `about:support` and find your profile folder using **Open Folder** (wording may vary).
-3. In your profile's `chrome/JS/` directory, create a file named **`TabHighlightPlus.uc.js`** and paste in the complete script.
-4. Remove or disable older versions of this tab-highlighting script so they do not create duplicate menus or conflicting styles.
-5. Go to `about:support`, select **Clear startup cache**, then fully restart Zen Browser.
+<details>
+<summary><strong>📥 Installation</strong></summary>
 
-For the `fx-autoconfig` layout used by this script, the file should look like this:
+1. Install and configure [fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig), following its own instructions for your browser/version.
+2. Open `about:support` and click **Open Folder** next to your profile folder.
+3. Copy the script(s) you want into the loader's `chrome/JS/` directory, keeping any required subfolders.
+4. Remove older versions of the **same** script to avoid duplicate menus, event listeners, or actor registrations.
+5. In `about:support`, choose **Clear startup cache** (when available), then **fully restart** Firefox/Zen.
+
+Expected paths for the files documented here:
 
 ```text
-<Zen profile>/
+<browser profile>/
 └── chrome/
     └── JS/
-        └── TabHighlightPlus.uc.js
+        ├── dblclickDuplicateTab.uc.js
+        ├── extreme-memory-controller.uc.js
+        ├── highlightTab.uc.js
+        ├── Periodically_clean_Firefox_memory.js
+        ├── YTColors26.uc.js
+        ├── YTColors26/
+        │   └── YTColors26Child.sys.mjs
+        ├── YTPlaybackFixer.uc.js
+        └── YTPlaybackFixer/
+            └── YTPlaybackFixerChild.sys.mjs
 ```
 
-If your loader uses a different scripts directory, follow that loader's configuration instead.
+**YouTube dependencies:** Do **not** install only the `.uc.js` entry point. Keep its matching folder and `.sys.mjs` child module, otherwise the actor will not start.
 
-## Usage
+**Legacy memory cleaner:** `Periodically_clean_Firefox_memory.js` ends in `.js`, not `.uc.js`. Some loaders may require you to rename or explicitly register it; follow your loader's discovery rules.
 
-### Highlight a tab
+</details>
 
-1. **Right-click** a tab.
-2. Open **Highlight Tab(s)**.
-3. Choose a color from the **Normal picker**, switch to the **Zen picker**, or choose **Custom HEX / RGB…**.
-4. To change the appearance, use **Highlight style → Full background** or **Border only**.
+<details>
+<summary><strong>🖱️ Double Click Duplicate Tab</strong></summary>
 
-For the normal grid, clicking a swatch applies the color immediately. In the Zen picker, select your color and click **Apply color**.
+**File:** [`dblclickDuplicateTab.uc.js`](chrome/JS/dblclickDuplicateTab.uc.js) · **Version:** 1.0
 
-### Highlight a folder and its contents
+Double-click an existing tab to make a duplicate and automatically switch to the new tab.
 
-1. **Right-click** a Zen folder header.
-2. Open **Highlight Folder**.
-3. Under **Apply folder color to**, choose:
-   - **Folder header only** — color just the folder header.
-   - **Folder + all tabs & subfolders** — also color items inside the folder.
-4. Choose **Full background** or **Border only**, then pick your color.
+To create the duplicate **in the background** instead, edit the script: comment out the line that assigns `gBrowser.selectedTab` and enable the alternative `gBrowser.duplicateTab(tab)` line already included in the source.
 
-Tabs with their own explicit highlight take priority over inherited folder colors. Nested folders with their own highlight can also use a different color.
+This depends on browser tab internals, so behavior may differ with custom tab bars.
 
-### Use a custom color
+</details>
 
-Supported input examples:
+<details>
+<summary><strong>🎨 Tab Highlight Plus — Tabs & Zen Folders</strong></summary>
 
-```text
-#FF8800
-#F80
-rgb(255, 136, 0)
-255,136,0
-```
+**File:** [`highlightTab.uc.js`](chrome/JS/highlightTab.uc.js) · **Version:** 3.4.2
 
-Use **Custom HEX / RGB…**, the **More colors** control, or the HEX/RGB input in the Zen picker. The last selected color is available through **Reuse custom**.
+- **64 preset colors** in a full-width 8 × 8 grid.
+- **Normal picker:** preset colors and a native color input.
+- **Zen-style picker:** gradient pad, circular color presets, brightness slider, and HEX/RGB entry.
+- **Full background** and **Border only** tab/folder styles.
+- Zen folder options for **Folder header only** or **Folder + all tabs & subfolders**.
+- Explicitly colored tabs take priority over inherited folder colors.
+- Multiple selected tabs, automatic text contrast, and compact **11px** sidebar labels.
+- Saved tab colors via Firefox SessionStore and folder colors via browser preferences.
 
-### Remove a highlight
+**Use it:** Right-click a tab → **Highlight Tab(s)**, or right-click a Zen folder header → **Highlight Folder**. Use **Alt + left-click** on a tab to toggle the quick color.
 
-Right-click a tab or folder, open its highlight menu, and choose **Remove highlight (None)**. A tab inside a highlighted folder may return to its inherited folder color after its individual highlight is removed.
+**Custom color examples:** `#F80`, `#FF8800`, `rgb(255,136,0)`, `255,136,0`.
 
-### Quick highlight
-
-**Alt + left-click** a tab to toggle the default quick-highlight color (`#C5DE92`).
-
-## Customization
-
-Edit the constants near the beginning of `TabHighlightPlus.uc.js`:
+**Customize:** Near the top of the file, change:
 
 ```js
 const FONT_SIZE = '11px';
 const QUICK_COLOR = '#C5DE92';
 ```
 
-- Change `FONT_SIZE` to adjust sidebar tab and folder text size (for example, `'12px'`).
-- Change `QUICK_COLOR` to choose the Alt-click highlight color.
-- Edit the `PALETTE` array to replace any of the 64 preset colors.
+You can also edit the `PALETTE` array. Folder appearance and inheritance depend on Zen's internal markup and may need adjustments after browser updates.
 
-After changing the script, clear the startup cache and restart the browser.
+</details>
 
-## How colors are saved
+<details>
+<summary><strong>🧠 Extreme Memory Controller</strong></summary>
 
-| Item | Storage | Behavior |
+**File:** [`extreme-memory-controller.uc.js`](chrome/JS/extreme-memory-controller.uc.js) · **Version:** 34.3
+
+A more aggressive tab-management experiment. It monitors idle time, skips the selected tab and tabs detected as playing audio or Picture-in-Picture, attempts to suspend inactive tabs, discards eligible tabs, and requests Firefox memory minimization.
+
+Default values in the script:
+
+| Setting | Default | Purpose |
 | --- | --- | --- |
-| Individual tab color | Firefox `SessionStore` custom tab values | Restored with the tab's session when available |
-| Tab highlight style | Firefox `SessionStore` custom tab values | Full or border-only mode per tab |
-| Folder color, style, and scope | Firefox preferences, keyed by Zen folder ID | Reapplied to the matching folder after restart |
-| Last custom color and default styles | Firefox preferences | Used for future selections |
+| `IDLE_SUSPEND` | `10` minutes | Attempt to suspend inactive, unpinned tabs. |
+| `IDLE_DISCARD` | `15` minutes | Discard eligible inactive, unpinned tabs. |
+| `PINNED_DISCARD` | `25` minutes | Pinned tabs are **not exempt** from discard. |
+| `TAB_BATCH` | `15` tabs | Number of tabs scanned per batch. |
+| `OPTIMIZE_INTERVAL` | `15000` ms | Tab-scan interval. |
+| `CLEAN_MEMORY_PERIOD` | `30*60*1000` ms | Memory cleanup about every 30 minutes. |
 
-Existing tab highlights from the earlier `highlighted_HT` script are designed to remain compatible.
+The script also logs a tab status/score report to the Browser Console roughly every 30 seconds.
 
-## Troubleshooting
+> [!CAUTION]
+> This script may stop activity or unload a page without asking. **Unsaved form data, in-progress tasks, and even pinned tabs could be affected.** Its suspension logic uses browser internals that may no longer work in all versions. Test with nonessential tabs and adjust timeouts before routine use.
 
-**The Highlight menu does not appear**
+</details>
 
-Check that your `userChrome.js` loader is installed correctly and that `TabHighlightPlus.uc.js` is loaded in the browser's main window. Confirm that older versions are disabled, clear the startup cache, and restart Zen.
+<details>
+<summary><strong>🧹 Periodically Clean Firefox Memory</strong></summary>
 
-**The folder header changes color, but tabs inside do not**
+**File:** [`Periodically_clean_Firefox_memory.js`](chrome/JS/Periodically_clean_Firefox_memory.js)
 
-Choose **Highlight Folder → Apply folder color to → Folder + all tabs & subfolders**. Folder inheritance depends on Zen's internal folder/tab structure, which can change between releases.
+A simpler, older periodic memory-cleanup script originally credited in its header to **garywill** ([firefoxtaskmonitor](https://github.com/garywill/firefoxtaskmonitor)). The header notes testing on Firefox 102 with xiaoxiaoflood's loader.
 
-**The color picker or menu looks wrong**
+The cleanup interval is set in milliseconds:
 
-Check for other `userChrome.css` rules or browser mods affecting context menus, tab backgrounds, buttons, or popup sizing. Try disabling conflicting customizations temporarily.
-
-**Colors disappear after restarting**
-
-Check that the browser restores your tab session and that the folder retains its Zen folder ID. Colors attached to deleted/recreated folders may not follow a new ID.
-
-**How do I check whether the script is running?**
-
-Open the **Browser Console** (`Ctrl + Shift + J`) and look for a message similar to:
-
-```text
-[Tab Highlight Plus] v3.4.2 full-width color palette ready
+```js
+const cleanMemory_period = 2*60*1000; // 2 minutes
 ```
 
-## Compatibility and limitations
+It requests garbage collection and memory minimization in the first browser window. This is **not** a guaranteed reduction in actual RAM usage.
 
-- Designed for **Zen Browser** using browser-chrome scripting; ordinary Firefox does not have Zen's folder UI.
-- Internal Zen/Firefox markup and APIs are not stable, so future browser updates may require script changes.
-- Folder inheritance follows Zen's current tab/folder membership data; custom sidebar mods may affect its behavior.
-- Custom color input supports 3- and 6-digit HEX and RGB values, but not alpha transparency or HSL.
-- The script was developed for the user's setup; compatibility with every Zen version, theme, and operating system is not guaranteed.
+> [!TIP]
+> **Pick one memory-cleanup strategy first.** Extreme Memory Controller already requests periodic memory minimization; running both can cause redundant cleanup activity.
 
-## Credits
+</details>
 
-- Inspired by the original tab-highlight `userChrome.js` script attributed to **Remia**.
-- Browser-chrome customization powered by the [fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig) ecosystem.
-- Zen-inspired gradient picker design is an independent recreation for this script, not an official Zen Browser component.
+<details>
+<summary><strong>🌈 YTColors26 — YouTube Video Age Colors</strong></summary>
 
-## Feedback
+**Files:** [`YTColors26.uc.js`](chrome/JS/YTColors26.uc.js) + [`YTColors26Child.sys.mjs`](chrome/JS/YTColors26/YTColors26Child.sys.mjs)
 
-Bug reports and improvement suggestions are welcome through GitHub Issues. When reporting a problem, include your **Zen Browser version**, **script version**, other active sidebar/menu customizations, and a screenshot or Browser Console error if possible.
+The `.uc.js` entry point registers a Firefox window actor. The child module handles YouTube cards and styles their borders by upload age, including live/upcoming categories. It also dims older videos and keeps track of a last-seen subscription video marker.
+
+- Uses `IntersectionObserver` and batched updates to reduce unnecessary work.
+- Handles new cards loaded as you scroll and YouTube's single-page navigation.
+- Styles videos in supported list/grid contexts with rounded borders.
+
+Adjust age-category colors in the child module's `COLORS` object. Adjust old-video dimming with:
+
+```js
+const OLD_OPACITY = '0.4'; // Current repository value
+```
+
+`1.0` means no dimming; smaller values dim the entire old-video card more strongly. Age identification depends on YouTube metadata and can be affected by locale or YouTube UI changes.
+
+</details>
+
+<details>
+<summary><strong>▶️ YTPlaybackFixer — YouTube Recovery & Quality</strong></summary>
+
+**Files:** [`YTPlaybackFixer.uc.js`](chrome/JS/YTPlaybackFixer.uc.js) + [`YTPlaybackFixerChild.sys.mjs`](chrome/JS/YTPlaybackFixer/YTPlaybackFixerChild.sys.mjs)
+
+Registers the `YTPlaybackFixerV5` window actor and runs a YouTube playback monitor. The child module attempts recovery from playback errors, prolonged stalls, and empty/critical buffering. It also adds a recovery counter and a quality selector near supported video titles.
+
+Quality options include `highres`, `hd2160`, `hd1440`, `hd1080`, `hd720`, lower qualities, `auto`, and `Disable`.
+
+- **`auto`:** Do not enforce a fixed quality.
+- **`Disable`:** Disable playback recovery and quality enforcement in the script.
+- **Specific quality:** Request the chosen quality using YouTube's player APIs.
+
+> [!WARNING]
+> YouTube can ignore or override quality requests. **A successful API call or installed hook does not guarantee that playback actually switched resolution.** Confirm using YouTube **Settings → Quality** and **Stats for Nerds**. Automatic recovery can also restart or reload video playback.
+
+The child module is an adaptation based on **YouTube – Playback Fixer v4.3 by brizzle**, whose MIT notice is retained in the file.
+
+</details>
+
+<details>
+<summary><strong>🔧 Troubleshooting</strong></summary>
+
+**No custom menu / no script effect?** Confirm the script loader is installed and enabled, the file is in the right loader directory, and there are no duplicate versions. Clear the startup cache and restart.
+
+**YouTube actor isn't starting?** Verify the `.sys.mjs` companion file exists at exactly the path referenced by the `.uc.js` entry point, including case, and that `chrome://userscripts/content/` resolves in your loader.
+
+**Folder color isn't inherited?** In **Highlight Folder → Apply folder color to**, choose **Folder + all tabs & subfolders**. Zen updates can change its folder membership APIs and CSS structure.
+
+**Video borders, quality, or playback recovery behave differently?** YouTube changes its HTML and internal player API regularly. Check the Browser Console with **Ctrl + Shift + J** and include any errors in an issue.
+
+**Memory cleanup causes tab reloads or interruptions?** Disable Extreme Memory Controller and/or increase its configured idle timeouts. Don't run both cleanup scripts until you've compared their behavior.
+
+When opening a [bug report](https://github.com/R3mia/Firefox-userChromejs/issues), include your browser version, loader, installed script(s), relevant console errors, and a screenshot if helpful.
+
+</details>
+
+<details>
+<summary><strong>⚠️ Safety notes and limitations</strong></summary>
+
+- These scripts run with **privileged browser access**. Read the source before enabling unfamiliar scripts, and keep a backup of your browser profile.
+- This collection is **experimental and version-sensitive**; it isn't an official Mozilla, Zen Browser, or YouTube project.
+- Aggressive memory scripts can interrupt background work or unload tabs.
+- YouTube appearance and playback behavior depend on interfaces outside this repository's control.
+- Use or adapt individual scripts according to their applicable copyright and license notices.
+
+</details>
+
+<details>
+<summary><strong>📜 License and credits</strong></summary>
+
+This repository contains a [Mozilla Public License 2.0](LICENSE) file. **Preserve copyright and license notices included in individual scripts**, which may contain third-party code under different terms.
+
+Acknowledgements:
+
+- [MrOtherGuy / fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig) — browser-chrome script loader.
+- [Ulf3000 / Firefox Highlight Tabs](https://github.com/Ulf3000/Firefox-Highlight-Tabs) — original tab-highlighting concept.
+- [garywill / firefoxtaskmonitor](https://github.com/garywill/firefoxtaskmonitor) — credited source for the periodic memory-cleaning script.
+- **brizzle** — upstream YouTube Playback Fixer, credited with an MIT license notice in the playback child module.
+
+</details>
+
+<details>
+<summary><strong>🤝 Feedback and contributions</strong></summary>
+
+Pull requests, compatibility reports, fixes, and suggestions are welcome. Please describe the change, indicate which browser version you tested, and keep attribution/license headers intact.
+
+- [Open an issue](https://github.com/R3mia/Firefox-userChromejs/issues)
+- [Browse the scripts](chrome/JS)
+- [Return to repository](https://github.com/R3mia/Firefox-userChromejs)
+
+</details>
