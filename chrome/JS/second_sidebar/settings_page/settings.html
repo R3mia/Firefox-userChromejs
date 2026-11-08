@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Second Sidebar settings</title>
+    <link rel="stylesheet" href="settings.css" />
+    <script type="module" src="settings.mjs"></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="intro">
+        <h1>Second Sidebar</h1>
+        <p>
+          Web panels next to your tabs. Changes apply right away, in every
+          window. Each panel has its own settings too: right-click its button
+          and choose <b>Edit web panel</b>.
+        </p>
+        <p class="support-line">
+          <span>Finding this useful?</span>
+          <a
+            class="support-link star"
+            href="https://github.com/sinazadeh/zen-second-sidebar-enhanced"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="M8 .7 10.2 5l4.8.7-3.5 3.4.8 4.8L8 11.6l-4.3 2.3.8-4.8L1 5.7 5.8 5 8 .7Z"
+              />
+            </svg>
+            Star the project
+          </a>
+          <span>or</span>
+          <a
+            class="support-link sponsor"
+            href="https://github.com/sponsors/sinazadeh"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="M8 14S2 10.5 2 5.8A3.3 3.3 0 0 1 8 3.9a3.3 3.3 0 0 1 6 1.9C14 10.5 8 14 8 14Z"
+              />
+            </svg>
+            sponsor its continued development
+          </a>
+          <span>.</span>
+        </p>
+      </header>
+
+      <p id="not-running" class="banner" hidden>
+        Second Sidebar isn't running in this window, so some of its settings
+        can't be shown. Restart the browser after installing it, then reload
+        this page.
+      </p>
+
+      <div id="restart-banner" class="banner restart" hidden>
+        <span>
+          Settings imported. Restart the browser to apply them; until then,
+          changes to the sidebar and web panels aren't saved.
+        </span>
+        <button id="restart" class="button primary" type="button">
+          Restart now
+        </button>
+      </div>
+
+      <div class="layout">
+        <div class="column">
+          <div id="sections" class="column"></div>
+
+          <section class="card">
+            <h2>Keyboard shortcuts</h2>
+            <p class="muted">
+              Click a box and press the keys; Backspace clears it. Shortcuts
+              follow the keys' places on the keyboard, so they keep working when
+              you switch layouts. Each web panel can have one too: right-click
+              its button and choose <b>Edit web panel</b>.
+            </p>
+            <div id="shortcuts" class="options"></div>
+            <p id="shortcut-status" class="status small" role="status"></p>
+          </section>
+
+          <section class="card">
+            <h2>Backup</h2>
+            <p class="muted">
+              Save your settings and web panels to a file, to restore them later
+              or in another profile. You choose what goes in, and what to
+              restore from it.
+            </p>
+            <div class="actions">
+              <button id="backup-export" class="button" type="button">
+                Export…
+              </button>
+              <button id="backup-import" class="button" type="button">
+                Import…
+              </button>
+              <input
+                id="backup-file"
+                type="file"
+                accept=".json,application/json"
+                hidden
+              />
+            </div>
+            <p id="backup-status" class="status small" role="status"></p>
+          </section>
+        </div>
+
+        <aside class="preview-wrap">
+          <div class="preview-label">Preview</div>
+          <div id="preview" class="preview" aria-label="Sidebar preview"></div>
+          <p class="muted small">
+            Hover a panel button in the preview to see its tooltip.
+          </p>
+        </aside>
+      </div>
+    </main>
+
+    <!-- Asks what to export, or what to restore from a backup. -->
+    <dialog id="backup-dialog" class="dialog">
+      <form method="dialog">
+        <h2 id="backup-dialog-title"></h2>
+        <p id="backup-dialog-text" class="muted"></p>
+        <div class="options">
+          <label class="option" id="backup-sidebar">
+            <span class="option-text">
+              <span class="option-title">Sidebar settings</span>
+              <span class="muted"></span>
+            </span>
+            <input type="checkbox" class="switch" checked />
+          </label>
+          <label class="option" id="backup-web-panels">
+            <span class="option-text">
+              <span class="option-title">Web panels</span>
+              <span class="muted"></span>
+            </span>
+            <input type="checkbox" class="switch" checked />
+          </label>
+        </div>
+        <p id="backup-dialog-note" class="muted small"></p>
+        <div class="dialog-actions">
+          <button value="cancel" class="button">Cancel</button>
+          <button value="ok" class="button primary" id="backup-dialog-ok">
+            OK
+          </button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

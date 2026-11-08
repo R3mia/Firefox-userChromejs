@@ -1,0 +1,52 @@
+import { requireBrowserContainerElement } from "./utils/browser_layout.mjs";
+import { XULElement } from "./xul/base/xul_element.mjs";
+
+export class BrowserElements {
+  static root = new XULElement({ element: window.document.documentElement });
+
+  static get browser() {
+    return new XULElement({
+      element: requireBrowserContainerElement(),
+    });
+  }
+
+  static tabbrowserTabbox = new XULElement({
+    element: document.getElementById("tabbrowser-tabbox"),
+  });
+
+  static get customizationContainer() {
+    return new XULElement({
+      element: document.getElementById("customization-container"),
+    });
+  }
+
+  static get notificationPopup() {
+    return new XULElement({
+      element: document.getElementById("notification-popup"),
+    });
+  }
+
+  static get contentAreaContextMenu() {
+    return new XULElement({
+      element: document.getElementById("contentAreaContextMenu"),
+    });
+  }
+
+  static get tabContextMenu() {
+    return new XULElement({
+      element: document.getElementById("tabContextMenu"),
+    });
+  }
+
+  static get placesContextMenu() {
+    return new XULElement({
+      element: document.getElementById("placesContext"),
+    });
+  }
+
+  static get menuApiPopup() {
+    return new XULElement({
+      element: document.querySelector('menupopup[menu-api="true"]'),
+    });
+  }
+}

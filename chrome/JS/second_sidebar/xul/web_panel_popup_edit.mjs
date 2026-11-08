@@ -1,0 +1,1218 @@
+import {
+  applyContainerColor,
+  fillContainerMenuList,
+} from "../utils/containers.mjs";
+import {
+  createCancelButton,
+  createInput,
+  createMenuList,
+  createPopupGroup,
+  createPopupRow,
+  createPopupSet,
+  createSaveButton,
+  createSubviewButton,
+  createSubviewIconicButton,
+  createZoomButtons,
+  updateZoomButtons,
+} from "../utils/xul.mjs";
+
+import { BrowserElements } from "../browser_elements.mjs";
+import { Div } from "./base/div.mjs";
+import { Panel } from "./base/panel.mjs";
+import { PanelMultiView } from "./base/panel_multi_view.mjs";
+import { PopupBody } from "./popup_body.mjs";
+import { PopupDiscardConfirmation } from "./popup_discard_confirmation.mjs";
+import { PopupFooter } from "./popup_footer.mjs";
+import { PopupHeader } from "./popup_header.mjs";
+import { SidebarControllers } from "../sidebar_controllers.mjs";
+import { Toggle } from "./base/toggle.mjs";
+import { ToolbarSeparator } from "./base/toolbar_separator.mjs";
+import { UserAgentMenuList } from "./user_agent_menu_list.mjs";
+import { VBox } from "./base/vbox.mjs";
+import { WebPanelController } from "../controllers/web_panel.mjs"; // eslint-disable-line no-unused-vars
+import { ZenSpacesWrapper } from "../wrappers/zen_spaces.mjs";
+import { fetchIconURL } from "../utils/icons.mjs";
+import { isLeftMouseButton } from "../utils/buttons.mjs";
+import {
+  SHORTCUT_INPUT_ATTRIBUTE,
+  isShortcutInputEvent,
+} from "../utils/keyboard.mjs";
+
+const ICONS = {
+  UNDO: "chrome://global/skin/icons/undo.svg",
+  MINUS: "chrome://global/skin/icons/minus.svg",
+  PLUS: "chrome://global/skin/icons/plus.svg",
+};
+
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+
+export class WebPanelPopupEdit extends Panel {
+  constructor() {
+    super({
+      id: "sb2-web-panel-edit",
+      classList: ["sb2-popup", "sb2-popup-with-header"],
+    });
+    this.setType("arrow")
+      .setRole("group")
+      .setAttribute("no-open-on-anchor", "true")
+      .setAttribute("noautohide", "true")
+      .setAttribute("consumeoutsideclicks", "false")
+      .setAttribute("level", "parent");
+
+    this.urlInput = createInput({ placeholder: "URL" });
+    this.dynamicTitleToggle = new Toggle({
+      id: "sb2-popup-dynamic-title-toggle",
+    });
+    this.titleInput = createInput({ placeholder: "Title" });
+    this.titleResetButton = createSubviewIconicButton(ICONS.UNDO, {
+      tooltipText: "Reset title",
+    });
+    this.dynamicFaviconToggle = new Toggle({
+      id: "sb2-popup-dynamic-favicon-toggle",
+    });
+    this.faviconURLInput = createInput({ placeholder: "Favicon URL" });
+    this.faviconResetButton = createSubviewIconicButton(ICONS.UNDO, {
+      tooltipText: "Request favicon",
+    });
+    this.alwaysOnTopToggle = new Toggle({
+      id: "sb2-popup-always-on-top-toggle",
+    });
+    this.selectorToggle = new Toggle({ id: "sb2-popup-css-selector-toggle" });
+    this.selectorInput = createInput({
+      id: "sb2-popup-css-selector-input",
+      placeholder: ".class-name, #id, tag-name, etc",
+    });
+    this.pinnedMenuList = this.#createPinTypeMenuList();
+    this.floatingAnchorMenuList = this.#createFloatingAnchorMenuList();
+    this.offsetXTypeMenuList = this.#createDimensionTypeMenuList();
+    this.offsetYTypeMenuList = this.#createDimensionTypeMenuList();
+    this.widthTypeMenuList = this.#createDimensionTypeMenuList();
+    this.heightTypeMenuList = this.#createDimensionTypeMenuList();
+    this.containerMenuList = createMenuList({ id: "sb2-container-menu-list" });
+    this.temporaryToggle = new Toggle();
+    this.userAgentMenuList = new UserAgentMenuList({
+      id: "sb2-popup-user-agent-menu-list",
+    });
+    this.customUserAgentInput = createInput({
+      id: "sb2-popup-custom-user-agent-input",
+      placeholder: "User agent string",
+    });
+    this.allSpacesToggle = new Toggle({ id: "sb2-popup-all-spaces-toggle" });
+    this.spacesList = new Div({ id: "sb2-popup-spaces-items" });
+    /** @type {Map<string, Toggle>} by space uuid */
+    this.spaceToggles = new Map();
+    /** @type {string[]} the panel's spaces that no longer exist */
+    this.deletedSpaces = [];
+    this.spacesAvailable = false;
+    this.spacesSet = createPopupSet("Spaces", [
+      createPopupGroup("All spaces", this.allSpacesToggle),
+      this.spacesList,
+    ]);
+    this.loadOnStartupToggle = new Toggle();
+    this.loadLastUrlToggle = new Toggle();
+    this.unloadOnCloseToggle = new Toggle();
+    this.unloadAfterInactivityMenuList =
+      this.#createUnloadAfterInactivityMenuList();
+    this.shortcutInput = createInput({
+      placeholder: "Click here and press keys...",
+    });
+    this.shortcutResetButton = createSubviewIconicButton(ICONS.UNDO, {
+      tooltipText: "Reset shortcut",
+    });
+    this.hideToolbarToggle = new Toggle();
+    this.hideSoundIconToggle = new Toggle();
+    this.hideNotificationBadgeToggle = new Toggle();
+    this.periodicReloadMenuList = this.#createPeriodicReloadMenuList();
+    this.reloadOnUrlChangeToggle = new Toggle({
+      id: "sb2-popup-reload-on-url-change-toggle",
+    });
+    this.zoomOutButton = createSubviewIconicButton(ICONS.MINUS, {
+      tooltipText: "Zoom Out",
+    });
+    this.resetZoomButton = createSubviewButton("100%", {
+      id: "sb2-zoom-button",
+      tooltipText: "Reset Zoom",
+    });
+    this.zoomInButton = createSubviewIconicButton(ICONS.PLUS, {
+      tooltipText: "Zoom In",
+    });
+    this.cancelButton = createCancelButton();
+    this.saveButton = createSaveButton();
+    this.discardConfirmation = new PopupDiscardConfirmation({
+      onDiscard: () => this.#discardChangesAndClose(),
+    });
+    this.backdrop = new VBox({ id: "sb2-web-panel-edit-backdrop" }).hide();
+    this.#setupListeners();
+    this.#compose();
+    BrowserElements.root.appendChild(this.backdrop);
+
+    this.zoom = 1;
+    this.faviconRequestId = 0;
+    this.faviconRequestPending = false;
+    this.applyingFaviconRequest = false;
+    this.editSessionActive = false;
+  }
+
+  #setupListeners() {
+    this.urlInput.addEventListener("input", () => this.#cancelFaviconRequest());
+    this.faviconURLInput.addEventListener("input", () => {
+      if (!this.applyingFaviconRequest) {
+        this.#cancelFaviconRequest();
+      }
+    });
+
+    this.backdrop.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    this.backdrop.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (isLeftMouseButton(event)) {
+        this.#requestClose();
+      }
+    });
+    this.backdrop.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
+    this.addEventListener("popupshown", (event) => {
+      if (event.target === this.getXUL()) {
+        this.backdrop.show();
+        SidebarControllers.webPanelsShortcuts.disable();
+      }
+    });
+    this.addEventListener("popuphidden", (event) => {
+      if (event.target === this.getXUL()) {
+        this.backdrop.hide();
+        SidebarControllers.webPanelsShortcuts.enable();
+      }
+    });
+
+    this.titleResetButton.addEventListener("click", (event) => {
+      if (isLeftMouseButton(event)) {
+        this.titleInput
+          .setValue(this.webPanelController.getTabTitle())
+          .dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+
+    this.faviconResetButton.addEventListener("click", async (event) => {
+      if (isLeftMouseButton(event)) {
+        const requestId = ++this.faviconRequestId;
+        this.faviconRequestPending = true;
+        this.saveButton.setAttribute("disabled", true);
+        try {
+          // Saved in settings (and exports), so no profile-local
+          // cached-favicon: URL.
+          const faviconURL = await fetchIconURL(this.urlInput.getValue(), {
+            local: false,
+          });
+          if (requestId !== this.faviconRequestId) {
+            return;
+          }
+          this.applyingFaviconRequest = true;
+          try {
+            this.faviconURLInput
+              .setValue(faviconURL)
+              .dispatchEvent(new Event("input", { bubbles: true }));
+          } finally {
+            this.applyingFaviconRequest = false;
+          }
+        } catch (error) {
+          if (requestId === this.faviconRequestId) {
+            console.error("Failed to request favicon:", error);
+          }
+        } finally {
+          if (requestId === this.faviconRequestId) {
+            this.faviconRequestPending = false;
+            this.saveButton.removeAttribute("disabled");
+          }
+        }
+      }
+    });
+
+    this.shortcutResetButton.addEventListener("click", (event) => {
+      if (isLeftMouseButton(event)) {
+        this.shortcutInput
+          .setValue("")
+          .removeAttribute("error")
+          .dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+
+    const recordShortcut = (event) => {
+      event.preventDefault();
+
+      const parts =
+        SidebarControllers.webPanelsShortcuts.getShortcutPartsFromEvent(event);
+      const shortcut = parts.join("+");
+      const isBisy =
+        SidebarControllers.webPanelsShortcuts.isWebPanelShortcutBusy(
+          this.uuid,
+          shortcut,
+          event,
+        );
+
+      if (isBisy) {
+        this.shortcutInput
+          .setValue(`Shortcut ${shortcut} is busy`)
+          .setAttribute("error", true)
+          .dispatchEvent(new Event("error", { bubbles: true }));
+        return;
+      }
+
+      this.shortcutInput.removeAttribute("error");
+      this.shortcutInput
+        .setValue(parts.join("+"))
+        .dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    this.shortcutInput.setAttribute(SHORTCUT_INPUT_ATTRIBUTE, "");
+    this.shortcutInput.addEventListener("keypress", recordShortcut);
+    // Escape gets no keypress once handled on keydown, so it's recorded
+    // there (the popup doesn't close on it from this field).
+    this.shortcutInput.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") recordShortcut(event);
+    });
+  }
+
+  /**
+   *
+   * @returns {MenuList}
+   */
+  #createPinTypeMenuList() {
+    const pinTypeMenuList = createMenuList({
+      id: "sb2-popup-pin-type-menu-list",
+    });
+    pinTypeMenuList.appendItem("Pinned", true);
+    pinTypeMenuList.appendItem("Floating", false);
+    return pinTypeMenuList;
+  }
+
+  /**
+   *
+   * @returns {MenuList}
+   */
+  #createFloatingAnchorMenuList() {
+    const menuList = createMenuList();
+    menuList.appendItem("Default", "default");
+    menuList.appendItem("Top-left", "topleft");
+    menuList.appendItem("Top-right", "topright");
+    menuList.appendItem("Bottom-left", "bottomleft");
+    menuList.appendItem("Bottom-right", "bottomright");
+    menuList.appendItem("Center", "center");
+    return menuList;
+  }
+
+  /**
+   *
+   * @returns {MenuList}
+   */
+  #createDimensionTypeMenuList() {
+    const menuList = createMenuList();
+    menuList.appendItem("Absolute", "absolute");
+    menuList.appendItem("Relative", "relative");
+    return menuList;
+  }
+
+  /**
+   *
+   * @returns {MenuList}
+   */
+  #createPeriodicReloadMenuList() {
+    const menuList = createMenuList();
+    menuList.appendItem("Never", 0);
+    menuList.appendItem("5 seconds", 5 * SECOND);
+    menuList.appendItem("10 seconds", 10 * SECOND);
+    menuList.appendItem("30 seconds", 30 * SECOND);
+    menuList.appendItem("1 minute", MINUTE);
+    menuList.appendItem("2 minutes", 2 * MINUTE);
+    menuList.appendItem("5 minutes", 5 * MINUTE);
+    menuList.appendItem("10 minutes", 10 * MINUTE);
+    menuList.appendItem("30 minutes", 30 * MINUTE);
+    menuList.appendItem("60 minutes", 60 * MINUTE);
+    menuList.appendItem("90 minutes", 90 * MINUTE);
+    return menuList;
+  }
+
+  /**
+   * Unloading discards page state (scroll position, form input, playback
+   * position, etc), so unlike periodic reload this only offers minute-scale
+   * options - there's no "5 seconds" equivalent that would make sense here.
+   *
+   * @returns {MenuList}
+   */
+  #createUnloadAfterInactivityMenuList() {
+    const menuList = createMenuList();
+    menuList.appendItem("Never", 0);
+    menuList.appendItem("5 minutes", 5 * MINUTE);
+    menuList.appendItem("10 minutes", 10 * MINUTE);
+    menuList.appendItem("15 minutes", 15 * MINUTE);
+    menuList.appendItem("30 minutes", 30 * MINUTE);
+    menuList.appendItem("60 minutes", 60 * MINUTE);
+    menuList.appendItem("2 hours", 120 * MINUTE);
+    menuList.appendItem("4 hours", 240 * MINUTE);
+    return menuList;
+  }
+
+  #compose() {
+    this.appendChildren(
+      new PanelMultiView().appendChildren(
+        new PopupHeader("Edit Web Panel"),
+        new PopupBody().appendChildren(
+          createPopupSet("", [
+            createPopupRow(this.urlInput),
+            new ToolbarSeparator(),
+            createPopupGroup("Multi-Account Container", this.containerMenuList),
+            new ToolbarSeparator(),
+            createPopupGroup("Temporary", this.temporaryToggle),
+            new ToolbarSeparator(),
+            createPopupGroup("User Agent", this.userAgentMenuList),
+            new Div({ id: "sb2-popup-custom-user-agent-items" }).appendChildren(
+              new ToolbarSeparator(),
+              createPopupRow(this.customUserAgentInput),
+            ),
+            new ToolbarSeparator(),
+            createPopupGroup(
+              "Zoom",
+              createZoomButtons(
+                this.zoomOutButton,
+                this.resetZoomButton,
+                this.zoomInButton,
+              ),
+            ),
+          ]),
+          this.spacesSet,
+          createPopupSet("Title", [
+            createPopupGroup("Dynamic", this.dynamicTitleToggle),
+            new Div({ id: "sb2-popup-title-items" }).appendChildren(
+              new ToolbarSeparator(),
+              createPopupRow(this.titleInput, this.titleResetButton),
+            ),
+          ]),
+          createPopupSet("Favicon", [
+            createPopupGroup("Dynamic", this.dynamicFaviconToggle),
+            new Div({ id: "sb2-popup-favicon-items" }).appendChildren(
+              new ToolbarSeparator(),
+              createPopupRow(this.faviconURLInput, this.faviconResetButton),
+            ),
+          ]),
+          createPopupSet("Position and size", [
+            createPopupGroup("Mode", this.pinnedMenuList),
+            new Div({
+              id: "sb2-popup-floating-items",
+            }).appendChildren(
+              new ToolbarSeparator(),
+              createPopupGroup("Always on top", this.alwaysOnTopToggle),
+              new ToolbarSeparator(),
+              createPopupGroup("Position anchor", this.floatingAnchorMenuList),
+              new ToolbarSeparator(),
+              createPopupGroup("Horizontal offset", this.offsetXTypeMenuList),
+              new ToolbarSeparator(),
+              createPopupGroup("Vertical offset", this.offsetYTypeMenuList),
+              new ToolbarSeparator(),
+              createPopupGroup("Width", this.widthTypeMenuList),
+              new ToolbarSeparator(),
+              createPopupGroup("Height", this.heightTypeMenuList),
+            ),
+          ]),
+          createPopupSet("Loading", [
+            createPopupGroup(
+              "Load into memory at startup",
+              this.loadOnStartupToggle,
+            ),
+            new ToolbarSeparator(),
+            createPopupGroup(
+              "Restore last opened page",
+              this.loadLastUrlToggle,
+            ),
+            new ToolbarSeparator(),
+            createPopupGroup(
+              "Unload from memory after closing",
+              this.unloadOnCloseToggle,
+            ),
+            new ToolbarSeparator(),
+            createPopupGroup(
+              "Unload after inactivity",
+              this.unloadAfterInactivityMenuList,
+            ),
+            new ToolbarSeparator(),
+            createPopupGroup("Periodic reload", this.periodicReloadMenuList),
+            new ToolbarSeparator(),
+            createPopupGroup(
+              "Reload when address changes",
+              this.reloadOnUrlChangeToggle,
+            ),
+          ]),
+          createPopupSet("Keyboard shortcut", [
+            createPopupRow(this.shortcutInput, this.shortcutResetButton),
+          ]),
+          createPopupSet("CSS selector", [
+            createPopupGroup("Enable", this.selectorToggle),
+            new Div({ id: "sb2-popup-css-selector-items" }).appendChildren(
+              new ToolbarSeparator(),
+              createPopupRow(this.selectorInput),
+            ),
+          ]),
+          createPopupSet("Hide elements", [
+            createPopupGroup("Hide toolbar", this.hideToolbarToggle),
+            new ToolbarSeparator(),
+            createPopupGroup("Hide sound icon", this.hideSoundIconToggle),
+            new ToolbarSeparator(),
+            createPopupGroup(
+              "Hide notification badge",
+              this.hideNotificationBadgeToggle,
+            ),
+          ]),
+        ),
+        new PopupFooter().appendChildren(this.cancelButton, this.saveButton),
+        this.discardConfirmation,
+      ),
+    );
+  }
+
+  /**
+   *
+   * @param {object} callbacks
+   * @param {function(string, string, number):void} callbacks.url
+   * @param {function(string, boolean string):void} callbacks.title
+   * @param {function(string, boolean, string, number):void} callbacks.faviconURL
+   * @param {function(string, boolean):void} callbacks.selectorEnabled
+   * @param {function(string, string, number):void} callbacks.selector
+   * @param {function(string, string, string, number):void} callbacks.userAgent
+   * @param {function(string, string[]):void} callbacks.spaces
+   * @param {function(string, boolean):void} callbacks.pinned
+   * @param {function(string, boolean):void} callbacks.alwaysOnTop
+   * @param {function(string, string):void} callbacks.anchor
+   * @param {function(string, string):void} callbacks.offsetXType
+   * @param {function(string, string):void} callbacks.offsetYType
+   * @param {function(string, string):void} callbacks.widthType
+   * @param {function(string, string):void} callbacks.heightType
+   * @param {function(string, string):void} callbacks.userContextId
+   * @param {function(string, boolean):void} callbacks.temporary
+   * @param {function(string, boolean):void} callbacks.loadOnStartup
+   * @param {function(string, boolean):void} callbacks.loadLastUrl
+   * @param {function(string, boolean):void} callbacks.unloadOnClose
+   * @param {function(string, number):void} callbacks.unloadAfterInactivity
+   * @param {function(string, string):void} callbacks.shortcut
+   * @param {function(string, boolean):void} callbacks.hideToolbar
+   * @param {function(string, boolean):void} callbacks.hideSoundIcon
+   * @param {function(string, boolean):void} callbacks.hideNotificationBadge
+   * @param {function(string, number):void} callbacks.periodicReload
+   * @param {function(string, boolean):void} callbacks.reloadOnUrlChange
+   * @param {function(string):number} callbacks.zoomOut
+   * @param {function(string):number} callbacks.zoomIn
+   * @param {function(string, number):number} callbacks.zoom
+   */
+  listenChanges({
+    url,
+    title,
+    faviconURL,
+    selectorEnabled,
+    selector,
+    userAgent,
+    spaces,
+    alwaysOnTop,
+    pinned,
+    anchor,
+    offsetXType,
+    offsetYType,
+    widthType,
+    heightType,
+    userContextId,
+    temporary,
+    loadOnStartup,
+    loadLastUrl,
+    unloadOnClose,
+    unloadAfterInactivity,
+    shortcut,
+    hideToolbar,
+    hideSoundIcon,
+    hideNotificationBadge,
+    periodicReload,
+    reloadOnUrlChange,
+    zoomOut,
+    zoomIn,
+    zoom,
+  }) {
+    this.onUrlChange = url;
+    this.onTitleChange = title;
+    this.onFaviconURLChange = faviconURL;
+    this.onSelectorEnabledChange = selectorEnabled;
+    this.onSelectorChange = selector;
+    this.onTemporaryChange = temporary;
+    this.onUserAgentChange = userAgent;
+    this.onSpacesChange = spaces;
+    this.onPinnedChange = pinned;
+    this.onAlwaysOnTopChange = alwaysOnTop;
+    this.onFloatingAnchorChange = anchor;
+    this.onOffsetXTypeChange = offsetXType;
+    this.onOffsetYTypeChange = offsetYType;
+    this.onWidthTypeChange = widthType;
+    this.onHeightTypeChange = heightType;
+    this.onUserContextIdChange = userContextId;
+    this.onLoadOnStartupChange = loadOnStartup;
+    this.onLoadLastUrlChange = loadLastUrl;
+    this.onUnloadOnCloseChange = unloadOnClose;
+    this.onUnloadAfterInactivityChange = unloadAfterInactivity;
+    this.onShortcutChange = shortcut;
+    this.onHideToolbar = hideToolbar;
+    this.onHideSoundIcon = hideSoundIcon;
+    this.onHideNotificationBadge = hideNotificationBadge;
+    this.onPeriodicReload = periodicReload;
+    this.onReloadOnUrlChange = reloadOnUrlChange;
+    this.onZoomOut = zoomOut;
+    this.onZoomIn = zoomIn;
+    this.onZoom = zoom;
+
+    this.urlInput.addEventListener("input", () => {
+      url(this.settings.uuid, this.urlInput.getValue(), 1000);
+    });
+    this.dynamicTitleToggle.addEventListener("toggle", () => {
+      title(
+        this.settings.uuid,
+        this.dynamicTitleToggle.getPressed(),
+        this.titleInput.getValue(),
+      );
+    });
+    this.titleInput.addEventListener("input", () => {
+      title(
+        this.settings.uuid,
+        this.dynamicTitleToggle.getPressed(),
+        this.titleInput.getValue(),
+      );
+    });
+    this.dynamicFaviconToggle.addEventListener("toggle", () => {
+      faviconURL(
+        this.settings.uuid,
+        this.dynamicFaviconToggle.getPressed(),
+        this.faviconURLInput.getValue(),
+        1000,
+      );
+    });
+    this.faviconURLInput.addEventListener("input", () => {
+      faviconURL(
+        this.settings.uuid,
+        this.dynamicFaviconToggle.getPressed(),
+        this.faviconURLInput.getValue(),
+        1000,
+      );
+    });
+    this.selectorToggle.addEventListener("toggle", () => {
+      selectorEnabled(this.settings.uuid, this.selectorToggle.getPressed());
+    });
+    this.selectorInput.addEventListener("input", () => {
+      selector(this.settings.uuid, this.selectorInput.getValue(), 1000);
+    });
+    this.alwaysOnTopToggle.addEventListener("toggle", () => {
+      alwaysOnTop(this.settings.uuid, this.alwaysOnTopToggle.getPressed());
+    });
+    this.pinnedMenuList.addEventListener("command", () => {
+      pinned(this.settings.uuid, this.pinnedMenuList.getValue() === "true");
+    });
+    this.floatingAnchorMenuList.addEventListener("command", () => {
+      anchor(this.settings.uuid, this.floatingAnchorMenuList.getValue());
+    });
+    this.offsetXTypeMenuList.addEventListener("command", () => {
+      offsetXType(this.settings.uuid, this.offsetXTypeMenuList.getValue());
+    });
+    this.offsetYTypeMenuList.addEventListener("command", () => {
+      offsetYType(this.settings.uuid, this.offsetYTypeMenuList.getValue());
+    });
+    this.widthTypeMenuList.addEventListener("command", () => {
+      widthType(this.settings.uuid, this.widthTypeMenuList.getValue());
+    });
+    this.heightTypeMenuList.addEventListener("command", () => {
+      heightType(this.settings.uuid, this.heightTypeMenuList.getValue());
+    });
+    this.containerMenuList.addEventListener("command", () => {
+      userContextId(this.settings.uuid, this.containerMenuList.getValue());
+    });
+    this.temporaryToggle.addEventListener("toggle", () => {
+      temporary(this.settings.uuid, this.temporaryToggle.getPressed());
+    });
+    this.userAgentMenuList.addEventListener("command", () => {
+      userAgent(
+        this.settings.uuid,
+        this.userAgentMenuList.getValue(),
+        this.customUserAgentInput.getValue(),
+      );
+    });
+    this.customUserAgentInput.addEventListener("input", () => {
+      userAgent(
+        this.settings.uuid,
+        this.userAgentMenuList.getValue(),
+        this.customUserAgentInput.getValue(),
+        1000,
+      );
+    });
+    this.allSpacesToggle.addEventListener("toggle", () => {
+      // Turning "All spaces" off starts from the active one.
+      if (
+        !this.allSpacesToggle.getPressed() &&
+        this.#getPickedSpaces().length === 0
+      ) {
+        this.spaceToggles.get(ZenSpacesWrapper.activeSpace)?.setPressed(true);
+      }
+      if (this.#getPickedSpaces().length === 0) {
+        this.allSpacesToggle.setPressed(true);
+      }
+      spaces(this.settings.uuid, this.#getPickedSpaces());
+    });
+    this.loadOnStartupToggle.addEventListener("toggle", () => {
+      loadOnStartup(this.settings.uuid, this.loadOnStartupToggle.getPressed());
+    });
+    this.loadLastUrlToggle.addEventListener("toggle", () => {
+      loadLastUrl(this.settings.uuid, this.loadLastUrlToggle.getPressed());
+    });
+    this.unloadOnCloseToggle.addEventListener("toggle", () => {
+      unloadOnClose(this.settings.uuid, this.unloadOnCloseToggle.getPressed());
+    });
+    this.unloadAfterInactivityMenuList.addEventListener("command", () => {
+      unloadAfterInactivity(
+        this.settings.uuid,
+        this.unloadAfterInactivityMenuList.getValue(),
+      );
+    });
+    this.shortcutInput.addEventListener("input", () => {
+      shortcut(this.settings.uuid, this.shortcutInput.getValue());
+    });
+    this.shortcutInput.addEventListener("error", () => {
+      shortcut(this.settings.uuid, this.settings.shortcut);
+    });
+    this.hideToolbarToggle.addEventListener("toggle", () => {
+      hideToolbar(this.settings.uuid, this.hideToolbarToggle.getPressed());
+    });
+    this.hideSoundIconToggle.addEventListener("toggle", () => {
+      hideSoundIcon(this.settings.uuid, this.hideSoundIconToggle.getPressed());
+    });
+    this.hideNotificationBadgeToggle.addEventListener("toggle", () => {
+      hideNotificationBadge(
+        this.settings.uuid,
+        this.hideNotificationBadgeToggle.getPressed(),
+      );
+    });
+    this.periodicReloadMenuList.addEventListener("command", () => {
+      periodicReload(
+        this.settings.uuid,
+        this.periodicReloadMenuList.getValue(),
+      );
+    });
+    this.reloadOnUrlChangeToggle.addEventListener("toggle", () => {
+      reloadOnUrlChange(
+        this.settings.uuid,
+        this.reloadOnUrlChangeToggle.getPressed(),
+      );
+    });
+    this.zoomOutButton.addEventListener("click", (event) => {
+      if (isLeftMouseButton(event)) {
+        this.zoom = zoomOut(this.settings.uuid);
+        this.#updateZoomButtons(this.zoom);
+      }
+    });
+    this.zoomInButton.addEventListener("click", (event) => {
+      if (isLeftMouseButton(event)) {
+        this.zoom = zoomIn(this.settings.uuid);
+        this.#updateZoomButtons(this.zoom);
+      }
+    });
+    this.resetZoomButton.addEventListener("click", (event) => {
+      if (isLeftMouseButton(event)) {
+        this.zoom = zoom(this.settings.uuid, 1);
+        this.#updateZoomButtons(this.zoom);
+      }
+    });
+  }
+
+  /**
+   *
+   * @param {number} zoom
+   */
+  #updateZoomButtons(zoom) {
+    updateZoomButtons(
+      zoom,
+      this.zoomOutButton,
+      this.resetZoomButton,
+      this.zoomInButton,
+    );
+  }
+
+  /**
+   *
+   * @param {function():void} callback
+   */
+  listenCancelButtonClick(callback) {
+    this.cancelButton.addEventListener("click", (event) => {
+      if (isLeftMouseButton(event)) {
+        callback();
+      }
+    });
+  }
+
+  /**
+   *
+   * @param {function(string):void} callback
+   */
+  listenSaveButtonClick(callback) {
+    this.saveButton.addEventListener("click", (event) => {
+      if (isLeftMouseButton(event) && !this.faviconRequestPending) {
+        this.#endEditSession();
+        callback(this.settings.uuid);
+      }
+    });
+  }
+
+  /**
+   * @returns {WebPanelPopupEdit}
+   */
+  hidePopup() {
+    this.#requestClose();
+    return this;
+  }
+
+  /**
+   *
+   * @param {WebPanelController} webPanelController
+   * @returns {WebPanelPopupEdit}
+   */
+  openPopup(webPanelController) {
+    if (this.editSessionActive) {
+      this.#cancelChanges();
+    }
+    this.#endEditSession();
+    const settings = webPanelController.dumpSettings();
+    this.uuid = settings.uuid;
+    this.urlInput.setValue(settings.url);
+    this.dynamicTitleToggle.setPressed(settings.dynamicTitle);
+    this.titleInput.setValue(settings.title);
+    this.dynamicFaviconToggle.setPressed(settings.dynamicFavicon);
+    this.faviconURLInput.setValue(settings.faviconURL);
+    this.selectorToggle.setPressed(settings.selectorEnabled);
+    this.selectorInput.setValue(settings.selector);
+    this.alwaysOnTopToggle.setPressed(settings.alwaysOnTop);
+    this.pinnedMenuList.setValue(settings.pinned);
+    this.floatingAnchorMenuList.setValue(settings.floatingGeometry.anchor);
+    this.offsetXTypeMenuList.setValue(settings.floatingGeometry.offsetXType);
+    this.offsetYTypeMenuList.setValue(settings.floatingGeometry.offsetYType);
+    this.widthTypeMenuList.setValue(settings.floatingGeometry.widthType);
+    this.heightTypeMenuList.setValue(settings.floatingGeometry.heightType);
+
+    fillContainerMenuList(this.containerMenuList);
+    this.containerMenuList.setValue(settings.userContextId);
+    applyContainerColor(
+      settings.userContextId,
+      this.containerMenuList.getXUL(),
+    );
+
+    this.temporaryToggle.setPressed(settings.temporary);
+    this.userAgentMenuList.setValue(settings.userAgent);
+    this.customUserAgentInput.setValue(settings.customUserAgent);
+    this.#fillSpaces(settings.spaces);
+    this.loadOnStartupToggle.setPressed(settings.loadOnStartup);
+    this.loadLastUrlToggle.setPressed(settings.loadLastUrl);
+    this.unloadOnCloseToggle.setPressed(settings.unloadOnClose);
+    this.unloadAfterInactivityMenuList.setValue(settings.unloadAfterInactivity);
+    this.shortcutInput.setValue(settings.shortcut).removeAttribute("error");
+    this.hideToolbarToggle.setPressed(settings.hideToolbar);
+    this.hideSoundIconToggle.setPressed(settings.hideSoundIcon);
+    this.hideNotificationBadgeToggle.setPressed(settings.hideNotificationBadge);
+    this.periodicReloadMenuList.setValue(settings.periodicReload);
+    this.reloadOnUrlChangeToggle.setPressed(settings.reloadOnUrlChange);
+    this.#updateZoomButtons(settings.zoom);
+    this.zoom = settings.zoom;
+
+    this.webPanelController = webPanelController;
+    this.settings = settings;
+    this.editSessionActive = true;
+
+    this.closeOnPopupHidden = (event) => {
+      if (event.target !== this.getXUL() || this.getState() !== "closed") {
+        return;
+      }
+      this.#cancelChanges();
+      this.#endEditSession();
+    };
+    this.escapeOnKeyDown = (event) => {
+      if (
+        event.key !== "Escape" ||
+        !this.editSessionActive ||
+        isShortcutInputEvent(event)
+      ) {
+        return;
+      }
+      if (this.#hasOpenPopupAboveEditor()) {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (this.discardConfirmation.isVisible()) {
+        this.discardConfirmation.hide();
+        return;
+      }
+      this.#requestClose();
+    };
+    this.addEventListener("popuphidden", this.closeOnPopupHidden);
+    window.addEventListener("keydown", this.escapeOnKeyDown, true);
+
+    return Panel.prototype.openPopupWithinWindow.call(
+      this,
+      webPanelController.button,
+    );
+  }
+
+  /**
+   * Lists this window's Zen spaces, with the panel's turned on. The section
+   * is hidden without spaces (Firefox).
+   *
+   * @param {string[]} panelSpaces
+   */
+  #fillSpaces(panelSpaces) {
+    this.spacesAvailable = ZenSpacesWrapper.available;
+    this.spacesSet.toggleHidden(!this.spacesAvailable);
+    this.spaceToggles = new Map();
+    this.spacesList.getXUL().replaceChildren();
+    if (!this.spacesAvailable) return;
+
+    const spaces = ZenSpacesWrapper.getSpaces();
+    // Kept as they are: the panel shows everywhere if none of its spaces is
+    // left (isWebPanelInSpace).
+    this.deletedSpaces = panelSpaces.filter(
+      (uuid) => !spaces.some((space) => space.uuid === uuid),
+    );
+    this.allSpacesToggle.setPressed(panelSpaces.length === 0);
+    for (const space of spaces) {
+      const toggle = new Toggle().setPressed(panelSpaces.includes(space.uuid));
+      toggle.addEventListener("toggle", () => {
+        // With none picked, it's back to all of them.
+        if (this.#getPickedSpaces().length === 0) {
+          this.allSpacesToggle.setPressed(true);
+        }
+        this.onSpacesChange(this.settings.uuid, this.#getPickedSpaces());
+      });
+      this.spaceToggles.set(space.uuid, toggle);
+      this.spacesList.appendChildren(
+        new ToolbarSeparator(),
+        createPopupGroup(space.name || "Unnamed space", toggle),
+      );
+    }
+  }
+
+  /**
+   * @returns {string[]} the spaces picked for the panel; none for all
+   */
+  #getPickedSpaces() {
+    if (this.allSpacesToggle.getPressed()) return [];
+    const picked = [...this.spaceToggles]
+      .filter(([, toggle]) => toggle.getPressed())
+      .map(([uuid]) => uuid);
+    return picked.length > 0 ? [...this.deletedSpaces, ...picked] : [];
+  }
+
+  /**
+   * @returns {string?} the web panel being edited, while the popup is open
+   */
+  getEditedUUID() {
+    return this.editSessionActive ? this.settings.uuid : null;
+  }
+
+  #requestClose() {
+    if (this.editSessionActive && this.#hasChanges()) {
+      this.discardConfirmation.show();
+      return;
+    }
+    Panel.prototype.hidePopup.call(this);
+  }
+
+  #discardChangesAndClose() {
+    this.#cancelFaviconRequest();
+    this.#cancelChanges();
+    this.#endEditSession();
+    Panel.prototype.hidePopup.call(this);
+  }
+
+  #endEditSession() {
+    this.editSessionActive = false;
+    this.#removeCloseListeners();
+    this.#cancelFaviconRequest();
+    this.backdrop.hide();
+    this.discardConfirmation.hide({ restoreFocus: false });
+  }
+
+  #cancelFaviconRequest() {
+    if (this.faviconRequestPending) {
+      this.faviconRequestId++;
+      this.faviconRequestPending = false;
+    }
+    this.saveButton.removeAttribute("disabled");
+  }
+
+  #removeCloseListeners() {
+    if (this.closeOnPopupHidden) {
+      this.removeEventListener("popuphidden", this.closeOnPopupHidden);
+      this.closeOnPopupHidden = null;
+    }
+    if (this.escapeOnKeyDown) {
+      window.removeEventListener("keydown", this.escapeOnKeyDown, true);
+      this.escapeOnKeyDown = null;
+    }
+  }
+
+  #hasOpenPopupAboveEditor() {
+    return Array.from(document.querySelectorAll("menupopup, panel")).some(
+      (popup) =>
+        popup !== this.getXUL() &&
+        ["open", "showing", "hiding"].includes(popup.state),
+    );
+  }
+
+  #hasChanges() {
+    return this.faviconRequestPending || this.#getChangeReverters().length > 0;
+  }
+
+  #cancelChanges() {
+    for (const revert of this.#getChangeReverters()) {
+      revert();
+    }
+  }
+
+  #getChangeReverters() {
+    const reverters = [];
+
+    if (
+      this.dynamicTitleToggle.getPressed() !== this.settings.dynamicTitle ||
+      this.titleInput.getValue() !== this.settings.title
+    ) {
+      reverters.push(() =>
+        this.onTitleChange(
+          this.settings.uuid,
+          this.settings.dynamicTitle,
+          this.settings.title,
+        ),
+      );
+    }
+    if (
+      this.dynamicFaviconToggle.getPressed() !== this.settings.dynamicFavicon ||
+      this.faviconURLInput.getValue() !== this.settings.faviconURL
+    ) {
+      reverters.push(() =>
+        this.onFaviconURLChange(
+          this.settings.uuid,
+          this.settings.dynamicFavicon,
+          this.settings.faviconURL,
+        ),
+      );
+    }
+    if (this.selectorToggle.getPressed() !== this.settings.selectorEnabled) {
+      reverters.push(() =>
+        this.onSelectorEnabledChange(
+          this.settings.uuid,
+          this.settings.selectorEnabled,
+        ),
+      );
+    }
+    if (this.selectorInput.getValue() !== this.settings.selector) {
+      reverters.push(() =>
+        this.onSelectorChange(this.settings.uuid, this.settings.selector),
+      );
+    }
+    // Upstream restores the URL last because its URL and selector updates
+    // share a debounce timer. Here they don't (WebPanelsController), so the
+    // order doesn't matter; it's kept to match upstream.
+    if (this.urlInput.getValue() !== this.settings.url) {
+      reverters.push(() =>
+        this.onUrlChange(this.settings.uuid, this.settings.url),
+      );
+    }
+    if ((this.pinnedMenuList.getValue() === "true") !== this.settings.pinned) {
+      reverters.push(() =>
+        this.onPinnedChange(this.settings.uuid, this.settings.pinned),
+      );
+    }
+    if (this.alwaysOnTopToggle.getPressed() !== this.settings.alwaysOnTop) {
+      reverters.push(() =>
+        this.onAlwaysOnTopChange(this.settings.uuid, this.settings.alwaysOnTop),
+      );
+    }
+    if (
+      this.floatingAnchorMenuList.getValue() !==
+      this.settings.floatingGeometry.anchor
+    ) {
+      reverters.push(() =>
+        this.onFloatingAnchorChange(
+          this.settings.uuid,
+          this.settings.floatingGeometry.anchor,
+        ),
+      );
+    }
+    if (
+      this.offsetXTypeMenuList.getValue() !==
+      this.settings.floatingGeometry.offsetXType
+    ) {
+      reverters.push(() =>
+        this.onOffsetXTypeChange(
+          this.settings.uuid,
+          this.settings.floatingGeometry.offsetXType,
+        ),
+      );
+    }
+    if (
+      this.offsetYTypeMenuList.getValue() !==
+      this.settings.floatingGeometry.offsetYType
+    ) {
+      reverters.push(() =>
+        this.onOffsetYTypeChange(
+          this.settings.uuid,
+          this.settings.floatingGeometry.offsetYType,
+        ),
+      );
+    }
+    if (
+      this.widthTypeMenuList.getValue() !==
+      this.settings.floatingGeometry.widthType
+    ) {
+      reverters.push(() =>
+        this.onWidthTypeChange(
+          this.settings.uuid,
+          this.settings.floatingGeometry.widthType,
+        ),
+      );
+    }
+    if (
+      this.heightTypeMenuList.getValue() !==
+      this.settings.floatingGeometry.heightType
+    ) {
+      reverters.push(() =>
+        this.onHeightTypeChange(
+          this.settings.uuid,
+          this.settings.floatingGeometry.heightType,
+        ),
+      );
+    }
+    if (
+      String(this.containerMenuList.getValue()) !==
+      String(this.settings.userContextId)
+    ) {
+      reverters.push(() =>
+        this.onUserContextIdChange(
+          this.settings.uuid,
+          this.settings.userContextId,
+        ),
+      );
+    }
+    if (this.temporaryToggle.getPressed() !== this.settings.temporary) {
+      reverters.push(() =>
+        this.onTemporaryChange(this.settings.uuid, this.settings.temporary),
+      );
+    }
+    if (
+      this.userAgentMenuList.getValue() !== this.settings.userAgent ||
+      this.customUserAgentInput.getValue() !== this.settings.customUserAgent
+    ) {
+      reverters.push(() =>
+        this.onUserAgentChange(
+          this.settings.uuid,
+          this.settings.userAgent,
+          this.settings.customUserAgent,
+        ),
+      );
+    }
+    if (
+      this.spacesAvailable &&
+      [...this.#getPickedSpaces()].sort().join() !==
+        [...this.settings.spaces].sort().join()
+    ) {
+      reverters.push(() =>
+        this.onSpacesChange(this.settings.uuid, this.settings.spaces),
+      );
+    }
+    if (this.loadOnStartupToggle.getPressed() !== this.settings.loadOnStartup) {
+      reverters.push(() =>
+        this.onLoadOnStartupChange(
+          this.settings.uuid,
+          this.settings.loadOnStartup,
+        ),
+      );
+    }
+    if (this.loadLastUrlToggle.getPressed() !== this.settings.loadLastUrl) {
+      reverters.push(() =>
+        this.onLoadLastUrlChange(this.settings.uuid, this.settings.loadLastUrl),
+      );
+    }
+    if (this.unloadOnCloseToggle.getPressed() !== this.settings.unloadOnClose) {
+      reverters.push(() =>
+        this.onUnloadOnCloseChange(
+          this.settings.uuid,
+          this.settings.unloadOnClose,
+        ),
+      );
+    }
+    if (
+      parseInt(this.unloadAfterInactivityMenuList.getValue()) !==
+      this.settings.unloadAfterInactivity
+    ) {
+      reverters.push(() =>
+        this.onUnloadAfterInactivityChange(
+          this.settings.uuid,
+          this.settings.unloadAfterInactivity,
+        ),
+      );
+    }
+
+    const shortcutValue = this.shortcutInput.hasAttribute("error")
+      ? this.settings.shortcut
+      : this.shortcutInput.getValue();
+    if (shortcutValue !== this.settings.shortcut) {
+      reverters.push(() =>
+        this.onShortcutChange(this.settings.uuid, this.settings.shortcut),
+      );
+    }
+
+    if (this.hideToolbarToggle.getPressed() !== this.settings.hideToolbar) {
+      reverters.push(() =>
+        this.onHideToolbar(this.settings.uuid, this.settings.hideToolbar),
+      );
+    }
+    if (this.hideSoundIconToggle.getPressed() !== this.settings.hideSoundIcon) {
+      reverters.push(() =>
+        this.onHideSoundIcon(this.settings.uuid, this.settings.hideSoundIcon),
+      );
+    }
+    if (
+      this.hideNotificationBadgeToggle.getPressed() !==
+      this.settings.hideNotificationBadge
+    ) {
+      reverters.push(() =>
+        this.onHideNotificationBadge(
+          this.settings.uuid,
+          this.settings.hideNotificationBadge,
+        ),
+      );
+    }
+    if (
+      parseInt(this.periodicReloadMenuList.getValue()) !==
+      this.settings.periodicReload
+    ) {
+      reverters.push(() =>
+        this.onPeriodicReload(this.settings.uuid, this.settings.periodicReload),
+      );
+    }
+    if (
+      this.reloadOnUrlChangeToggle.getPressed() !==
+      this.settings.reloadOnUrlChange
+    ) {
+      reverters.push(() =>
+        this.onReloadOnUrlChange(
+          this.settings.uuid,
+          this.settings.reloadOnUrlChange,
+        ),
+      );
+    }
+    if (this.zoom !== this.settings.zoom) {
+      reverters.push(() => this.onZoom(this.settings.uuid, this.settings.zoom));
+    }
+
+    return reverters;
+  }
+}

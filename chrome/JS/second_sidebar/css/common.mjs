@@ -1,0 +1,135 @@
+export const COMMON_CSS = `
+  @import url("chrome://global/content/elements/moz-toggle.css");
+
+  :root {
+    --sb2-main-padding: var(--space-small);
+    --sb2-main-web-panel-buttons-position: start;
+    --sb2-zen-radius: var(--zen-border-radius, var(--border-radius-medium));
+    /* Transparent on purpose: the sidebar and a pinned panel sit on Zen's own
+       window background, like Zen's sidebar does. */
+    --sb2-zen-surface: transparent;
+    /* A floating panel sits over the page, which would show through it, so it
+       gets the background Zen gives its own floating (compact mode) sidebar. */
+    --sb2-zen-floating-surface: light-dark(#e9e9e9, #131313);
+    /* With Zen's acrylic option, Zen still tints the blur behind its floating
+       sidebar (its default toolbar colour at 60%). The blur alone leaves a
+       translucent page showing through. */
+    --sb2-zen-floating-acrylic-surface: light-dark(rgba(240, 240, 244, 0.6), rgba(23, 23, 26, 0.6));
+    --sb2-zen-toolbar-surface: var(--zen-colors-tertiary, var(--toolbar-bgcolor));
+    --sb2-zen-surface-hover: var(--zen-colors-secondary, color-mix(in srgb, currentColor 10%, transparent));
+    --sb2-zen-overlay-surface: light-dark(color-mix(in oklab, white 15%, var(--zen-primary-color) 10%, transparent), color-mix(in oklab, black 15%, var(--zen-primary-color) 25%, transparent));
+    --sb2-zen-surface-active: var(--toolbarbutton-active-background, color-mix(in srgb, currentColor 14%, transparent));
+    --sb2-zen-border: none;
+    --sb2-zen-shadow: var(--content-area-shadow);
+  }
+
+  @media -moz-pref("browser.nova.enabled") {
+    :root {
+      /* Card-style Nova exposes the gap/radius tokens. Newer connected layouts
+         do not, so the fallbacks intentionally describe a flush surface. */
+      --sb2-nova-window-gap: var(--chrome-window-gap, 0px);
+      --sb2-nova-radius: var(--chrome-block-radius, var(--border-radius-medium));
+      --sb2-nova-card-radius: var(--chrome-block-radius, 0px);
+      --sb2-nova-connected-radius: min(
+        var(--sb2-nova-radius),
+        calc(var(--sb2-nova-window-gap) * 2)
+      );
+      --sb2-nova-card-border-width: min(
+        var(--border-width, 1px),
+        var(--sb2-nova-card-radius)
+      );
+      --sb2-nova-border-color: var(
+        --chrome-content-separator-color,
+        var(--sidebar-border-color)
+      );
+    }
+
+    :root[sb2-nova-card-layout]:not([lwtheme]) {
+      --sb2-nova-sidebar-surface-color: var(--toolbar-background-color);
+    }
+
+    @media (-moz-windows-mica) {
+      /* Opposite window edges can sample slightly different Mica tones. Bias
+         only Second Sidebar enough to compensate without flattening the effect. */
+      :root[sb2-nova-card-layout]:not([lwtheme]) {
+        --sb2-nova-sidebar-surface-color: color-mix(
+          in srgb,
+          var(--toolbar-background-color) 97.5%,
+          white 2.5%
+        );
+      }
+    }
+
+    /* Nightly's connected layout no longer gives the content a corner on the
+       edge occupied by Second Sidebar. Restore that native separator and
+       radius in restored windows without changing Firefox's own sidebar. */
+    :root[sizemode="normal"]:not(
+        [sb2-nova-card-layout],
+        [inFullscreen],
+        [inDOMFullscreen],
+        [fullscreenNavToolboxHidden]
+      ):has(
+        #sb2-wrapper[position="left"] #sb2-main:not([sb2-collapsed], [overlay="true"]),
+        #sb2-wrapper[position="left"] #sb2-box[pinned="true"]:not([hidden="true"])
+      )
+      #tabbrowser-tabpanels
+      > :not(.split-view-panel)
+      .browserContainer {
+      border-top-left-radius: var(--sb2-nova-radius);
+      border-left: var(--border-width, 1px) solid var(--sb2-nova-border-color);
+    }
+
+    :root[sizemode="normal"]:not(
+        [sb2-nova-card-layout],
+        [inFullscreen],
+        [inDOMFullscreen],
+        [fullscreenNavToolboxHidden]
+      ):has(
+        #sb2-wrapper[position="right"] #sb2-main:not([sb2-collapsed], [overlay="true"]),
+        #sb2-wrapper[position="right"] #sb2-box[pinned="true"]:not([hidden="true"])
+      )
+      #tabbrowser-tabpanels
+      > :not(.split-view-panel)
+      .browserContainer {
+      border-top-right-radius: var(--sb2-nova-radius);
+      border-right: var(--border-width, 1px) solid var(--sb2-nova-border-color);
+    }
+
+    /* Firefox only keeps a maximized content corner when it sees one of its
+       built-in sidebars on that edge. Teach it about the second sidebar too. */
+    :root[sizemode="maximized"]:not(
+        [inFullscreen],
+        [inDOMFullscreen],
+        [fullscreenNavToolboxHidden]
+      ):has(
+        #sb2-wrapper[position="left"] #sb2-main:not([sb2-collapsed], [overlay="true"]),
+        #sb2-wrapper[position="left"] #sb2-box[pinned="true"]:not([hidden="true"])
+      )
+      #tabbrowser-tabpanels
+      > :not(.split-view-panel)
+      .browserContainer {
+      border-top-left-radius: var(--sb2-nova-radius);
+      border-left: var(--border-width, 1px) solid var(--sb2-nova-border-color);
+    }
+
+    :root[sizemode="maximized"]:not(
+        [inFullscreen],
+        [inDOMFullscreen],
+        [fullscreenNavToolboxHidden]
+      ):has(
+        #sb2-wrapper[position="right"] #sb2-main:not([sb2-collapsed], [overlay="true"]),
+        #sb2-wrapper[position="right"] #sb2-box[pinned="true"]:not([hidden="true"])
+      )
+      #tabbrowser-tabpanels
+      > :not(.split-view-panel)
+      .browserContainer {
+      border-top-right-radius: var(--sb2-nova-radius);
+      border-right: var(--border-width, 1px) solid var(--sb2-nova-border-color);
+    }
+  }
+
+  #browser,
+  #zen-tabbox-wrapper {
+    position: relative;
+  }
+`;

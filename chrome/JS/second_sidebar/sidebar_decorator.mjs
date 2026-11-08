@@ -1,0 +1,56 @@
+import { COMMON_CSS } from "./css/common.mjs";
+import { CONTAINERS_CSS } from "./css/containers.mjs";
+import { CONTEXT_ITEM_CSS } from "./css/context_item.mjs";
+import { CUSTOMIZATION_CSS } from "./css/customization.mjs";
+import { POPUPS_CSS } from "./css/popups.mjs";
+import { SIDEBAR_BOX_CSS } from "./css/sidebar_box.mjs";
+import { SIDEBAR_MAIN_CSS } from "./css/sidebar_main.mjs";
+import { SIDEBAR_RESIZER_CSS } from "./css/sidebar_resizer.mjs";
+import { SIDEBAR_SPLITTER_CSS } from "./css/sidebar_splitter.mjs";
+import { SIDEBAR_WRAPPER_CSS } from "./css/sidebar_wrapper.mjs";
+import { SidebarControllers } from "./sidebar_controllers.mjs";
+import { WEB_PANELS_BROWSER_CSS } from "./css/web_panels_browser.mjs";
+import { WEB_PANEL_CSS } from "./css/web_panel.mjs";
+
+const STYLE =
+  COMMON_CSS +
+  SIDEBAR_WRAPPER_CSS +
+  SIDEBAR_MAIN_CSS +
+  SIDEBAR_BOX_CSS +
+  SIDEBAR_RESIZER_CSS +
+  SIDEBAR_SPLITTER_CSS +
+  WEB_PANELS_BROWSER_CSS +
+  WEB_PANEL_CSS +
+  POPUPS_CSS +
+  CONTEXT_ITEM_CSS +
+  CONTAINERS_CSS +
+  CUSTOMIZATION_CSS;
+
+export class SidebarDecorator {
+  static decorate() {
+    this.#setNovaLayoutMode();
+    const style = document.createElement("style");
+    style.innerHTML = STYLE;
+    document.querySelector("head").appendChild(style);
+    this.#collapse();
+  }
+
+  static #setNovaLayoutMode() {
+    const root = document.documentElement;
+    const usesCardLayout =
+      getComputedStyle(root)
+        .getPropertyValue("--chrome-block-radius")
+        .trim() !== "";
+    root.toggleAttribute("sb2-nova-card-layout", usesCardLayout);
+  }
+
+  static #collapse() {
+    if (SidebarControllers.sidebarController.autoHideSidebar) {
+      SidebarControllers.sidebarMainCollapser.collapse({
+        animate: false,
+        fullScreenAnimate: true,
+        delay: 100,
+      });
+    }
+  }
+}

@@ -1,0 +1,1174 @@
+import { FALLBACK_ICON, fetchIconURL } from "../utils/icons.mjs";
+import { clearUrl, extractHostname } from "../utils/url.mjs";
+import { isLeftMouseButton, isMiddleMouseButton } from "../utils/buttons.mjs";
+
+import { ChromeUtilsWrapper } from "../wrappers/chrome_utils.mjs";
+import { FloatingWebPanelGeometrySettings } from "../settings/floating_web_panel_geometry_settings.mjs"; // eslint-disable-line no-unused-vars
+import { Logger } from "../utils/logger.mjs";
+import { PinnedWebPanelGeometrySettings } from "../settings/pinned_web_panel_geometry_settings.mjs"; // eslint-disable-line no-unused-vars
+import { ScriptSecurityManagerWrapper } from "../wrappers/script_security_manager.mjs";
+import { SidebarControllers } from "../sidebar_controllers.mjs";
+import { SidebarElements } from "../sidebar_elements.mjs";
+import { WebPanelButton } from "../xul/web_panel_button.mjs";
+import { WebPanelSettings } from "../settings/web_panel_settings.mjs";
+import { WebPanelState } from "../settings/web_panel_state.mjs";
+import { WebPanelTab } from "../xul/web_panel_tab.mjs"; // eslint-disable-line no-unused-vars
+import { WindowWrapper } from "../wrappers/window.mjs";
+import { buildSelectorScript } from "../utils/selector_script.mjs";
+import { ZoomManagerWrapper } from "../wrappers/zoom_manager.mjs";
+import { parseNotifications } from "../utils/string.mjs";
+import { safeCall } from "../utils/errors.mjs";
+
+const DEFAULT_ZOOM = 1;
+
+export class WebPanelController {
+  #progressListener = this.#createProgressListener();
+  /**@type {WebPanelSettings} */
+  #settings;
+  /**@type {WebPanelState} */
+  #state;
+  /**@type {WebPanelButton} */
+  #button;
+  /**@type {WebPanelTab?} */
+  #tab = null;
+  /**@type {number?} */
+  #reloadTimer = null;
+  /**@type {number?} */
+  #nextReloadAt = null;
+  /**@type {number?} */
+  #inactivityUnloadTimer = null;
+  /**@type {number?} */
+  #nextInactivityUnloadAt = null;
+  /**
+   * The main browser's site when this panel's page last (re)loaded, for
+   * "Reload when address changes" (see reloadIfSiteChanged).
+   *
+   * @type {string?}
+   */
+  #loadedForHostname = null;
+  /**
+   * Whether the panel is limited to Zen spaces other than this window's
+   * active one (see WebPanelsController#applySpaces).
+   *
+   * @type {boolean}
+   */
+  #outsideSpace = false;
+
+  /**
+   *
+   * @param {WebPanelSettings} settings
+   * @param {WebPanelState} state
+   * @param {object?} params
+   * @param {boolean?} params.loaded
+   * @param {string?} params.position
+   */
+  constructor(settings, state, { loaded = false, position = null } = {}) {
+    this.#settings = settings;
+    this.#state = state;
+    this.#button = this.#createWebPanelButton(settings, loaded, position);
+
+    if (loaded) this.load();
+  }
+
+  #createProgressListener() {
+    const callback = () => this.updateTitle();
+    const onStateChange = (aWebProgress, aRequest, aFlag) => {
+      callback();
+      const STATE_STOP = Ci.nsIWebProgressListener2.STATE_STOP;
+      const STATE_IS_WINDOW = Ci.nsIWebProgressListener2.STATE_IS_WINDOW;
+      if (
+        aWebProgress.isTopLevel &&
+        aFlag & STATE_STOP &&
+        aFlag & STATE_IS_WINDOW
+      ) {
+        this.#state.lastUrl = this.getTabUrl();
+        SidebarControllers.webPanelsController.saveState();
+        if (this.getSelectorEnabled()) {
+          setTimeout(() => this.#applySelector(), 100);
+        }
+      }
+    };
+    return {
+      QueryInterface: ChromeUtilsWrapper.generateQI([
+        "nsIWebProgressListener",
+        "nsIWebProgressListener2",
+        "nsISupportsWeakReference",
+        "nsIXULBrowserWindow",
+      ]),
+      onLocationChange: callback,
+      onStateChange: onStateChange,
+      onStatusChange: callback,
+    };
+  }
+
+  #applySelector() {
+    const selector = this.getSelector();
+    if (!this.getSelectorEnabled() || selector === "") {
+      return;
+    }
+    this.#tab.linkedBrowser.go(buildSelectorScript(selector));
+  }
+
+  /**
+   *
+   * @param {WebPanelSettings} settings
+   * @param {boolean} loaded
+   * @param {string} position
+   */
+  #createWebPanelButton(settings, loaded, position) {
+    const button = new WebPanelButton(settings, position);
+    button.setUnloaded(!loaded);
+    button.setAttribute("temporary", settings.temporary);
+
+    let tooltipTimer = null;
+
+    button.addEventListener("mouseenter", () => {
+      tooltipTimer = setTimeout(() => {
+        SidebarControllers.webPanelTooltipController.openPopup(this);
+      }, 500);
+    });
+
+    button.addEventListener("mouseleave", () => {
+      clearTimeout(tooltipTimer);
+      SidebarControllers.webPanelTooltipController.hidePopup();
+    });
+
+    // Pressing a button opens its panel at once. The open panel's button
+    // closes it on click instead, as pressing a selected tab keeps it
+    // selected, so it can be dragged to a new place in the sidebar
+    // (SidebarMainController) without closing the panel.
+    let closeOnClick = false;
+
+    button.addEventListener("mousedown", (event) => {
+      if (
+        !isLeftMouseButton(event) ||
+        document.documentElement.hasAttribute("customizing")
+      ) {
+        return;
+      }
+
+      event.stopPropagation();
+      clearTimeout(tooltipTimer);
+      SidebarControllers.webPanelTooltipController.hidePopup();
+
+      closeOnClick =
+        this.isActive() && !SidebarControllers.sidebarController.closed();
+      if (!closeOnClick) {
+        this.switchWebPanel();
+      }
+    });
+
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (isLeftMouseButton(event)) {
+        if (closeOnClick) {
+          closeOnClick = false;
+          this.switchWebPanel();
+        }
+        return;
+      }
+      if (!isMiddleMouseButton(event)) return;
+
+      clearTimeout(tooltipTimer);
+      SidebarControllers.webPanelTooltipController.hidePopup();
+
+      if (this.isActive()) {
+        SidebarControllers.sidebarController.close();
+      }
+      this.unload();
+    });
+
+    return button;
+  }
+
+  /**
+   * @returns {WebPanelButton}
+   */
+  get button() {
+    return this.#button;
+  }
+
+  /**
+   *
+   * @returns {string}
+   */
+  getUUID() {
+    return this.#settings.uuid;
+  }
+
+  /**
+   *
+   * @returns {string?}
+   */
+  getTabUrl() {
+    return this.#tab?.linkedBrowser?.getCurrentUrl();
+  }
+
+  /**
+   *
+   * @returns {string}
+   */
+  getURL() {
+    return this.#settings.url;
+  }
+
+  /**
+   * @returns {string}
+   */
+  getUserContextId() {
+    return this.#settings.userContextId;
+  }
+
+  /**
+   *
+   * @returns {string}
+   */
+  getUrlForTooltip() {
+    const tabUrl = this.getTabUrl();
+    const url = this.isTitleDynamic() && tabUrl ? tabUrl : this.#settings.url;
+    const fullUrlSetting =
+      SidebarControllers.sidebarController.getWebPanelTooltipFullUrl();
+    return fullUrlSetting ? clearUrl(url) : extractHostname(url);
+  }
+
+  /**
+   *
+   * @param {string} value
+   */
+  setURL(value) {
+    this.#settings.url = value;
+  }
+
+  /**
+   *
+   * @param {string} userContextId
+   */
+  setUserContextId(userContextId) {
+    this.#settings.userContextId = userContextId;
+
+    if (!this.isUnloaded()) {
+      const isActive = this.isActive();
+      this.unload();
+      this.load();
+      if (isActive) {
+        SidebarElements.webPanelsBrowser.selectWebPanelTab(this.#tab);
+      }
+    }
+
+    this.#button.setUserContextId(userContextId);
+  }
+
+  /**
+   *
+   * @returns {string?}
+   */
+  getTabTitle() {
+    return this.#tab?.linkedBrowser?.getTitle();
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  isTitleDynamic() {
+    return this.#settings.dynamicTitle;
+  }
+
+  /**
+   *
+   * @returns {string?}
+   */
+  getTitle() {
+    return this.isTitleDynamic() ? this.getTabTitle() : this.#settings.title;
+  }
+
+  /**
+   *
+   * @param {boolean} dynamicTitle
+   * @param {string} title
+   */
+  setTitle(dynamicTitle, title) {
+    this.#settings.dynamicTitle = dynamicTitle;
+    this.#settings.title = title;
+  }
+
+  /**
+   *
+   * @returns {string}
+   */
+  getFaviconURL() {
+    return this.#settings.faviconURL;
+  }
+
+  /**
+   *
+   * @param {boolean} dynamicFavicon
+   * @param {string} faviconURL
+   */
+  setFaviconURL(dynamicFavicon, faviconURL) {
+    this.#settings.dynamicFavicon = dynamicFavicon;
+    this.#settings.faviconURL = faviconURL;
+  }
+
+  updateFavicon() {
+    const busy = this.#tab.getAttributeBool("busy");
+    const progress = this.#tab.getAttributeBool("progress");
+    if (busy || progress) {
+      this.#button.setLoading(true).setIcon("");
+    } else if (this.#settings.dynamicFavicon) {
+      this.#button.setLoading(false).setIcon(this.#tab.image || FALLBACK_ICON);
+    } else {
+      this.#button
+        .setLoading(false)
+        .setIconWithFallback(this.#settings.faviconURL, this.#settings.url);
+    }
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  isActive() {
+    return this.#tab && this.#tab.selected;
+  }
+
+  updateTitle() {
+    if (this.isActive()) {
+      SidebarControllers.sidebarController.updateToolbar(this);
+    }
+    const title = this.getTabTitle();
+    const notifications = parseNotifications(title);
+    this.#button.setNotificationBadge(notifications);
+  }
+
+  updateSoundIcon() {
+    const soundplaying = this.#tab.getAttributeBool("soundplaying");
+    const muted = this.#tab.getAttributeBool("muted");
+    this.#button.setSoundIcon(soundplaying, muted);
+  }
+
+  /**
+   *
+   * @param {object} params
+   * @param {boolean} params.forceOpen
+   */
+  switchWebPanel({ forceOpen = false } = {}) {
+    const activeTab = SidebarElements.webPanelsBrowser.getActiveWebPanelTab();
+
+    if (activeTab.uuid === this.getUUID() && !forceOpen) {
+      if (SidebarControllers.sidebarController.closed()) {
+        this.open();
+      } else {
+        SidebarControllers.sidebarController.close();
+      }
+    } else {
+      // Create web panel tab if it was not loaded yet
+      if (this.isUnloaded()) {
+        this.load();
+      }
+      // Select web panel tab
+      SidebarElements.webPanelsBrowser.selectWebPanelTab(this.#tab);
+      this.open();
+    }
+  }
+
+  open() {
+    // Panel is active again; it shouldn't unload itself from under the user.
+    this.#stopInactivityTimer();
+
+    // Configure web panel and button
+    this.#button.setOpen(true).setUnloaded(false);
+    this.setZoom(this.#settings.zoom);
+
+    // Open sidebar if it was closed and configure
+    SidebarControllers.sidebarController.open();
+
+    // Catch up on site changes it missed while it wasn't shown.
+    this.reloadIfSiteChanged();
+  }
+
+  close() {
+    if (this.#settings.temporary) {
+      this.remove();
+      SidebarControllers.webPanelsController.delete(this.getUUID());
+      SidebarControllers.webPanelsController.saveSettings();
+    } else {
+      this.#button.setOpen(false);
+      if (this.#settings.unloadOnClose) {
+        this.unload();
+      } else {
+        // Panel became inactive but stays loaded; start counting down to an
+        // inactivity unload, if configured (see setUnloadAfterInactivity).
+        this.#startInactivityTimer();
+      }
+    }
+  }
+
+  load() {
+    this.#tab = SidebarElements.webPanelsBrowser.addWebPanelTab(
+      this.#settings,
+      this.#progressListener,
+    );
+    this.#log("tab created");
+    this.#tab.addTabCloseListener(() => this.unload(false));
+    this.#tab.addTabAttrModifiedListener(
+      (soundplaying, muted, image, busy, progress, label) => {
+        if (soundplaying || muted) {
+          this.updateSoundIcon();
+          this.#log(
+            `sound state changed: playing=${this.#tab.getAttributeBool("soundplaying")}, muted=${this.#tab.getAttributeBool("muted")}`,
+          );
+        }
+        if (image || busy || progress) this.updateFavicon();
+        if (label) this.updateTitle();
+      },
+    );
+    this.#button.setUnloaded(false);
+    this.#startTimer();
+    // Covers panels loaded at startup that never go through open()/close()
+    // (e.g. "load into memory at startup" panels other than the one that
+    // ends up selected) - they still count as inactive from the start.
+    if (!this.isActive()) {
+      this.#startInactivityTimer();
+    }
+
+    this.#loadedForHostname =
+      SidebarControllers.webPanelsController.getMainBrowserHostname();
+    this.go(this.#getStartUrl());
+  }
+
+  /**
+   * @returns {string} the page the panel opens on when it's loaded
+   */
+  #getStartUrl() {
+    return this.#settings.loadLastUrl
+      ? (this.#state?.lastUrl ?? this.#settings.url)
+      : this.#settings.url;
+  }
+
+  /**
+   * Opens the panel's page in a new tab of this window, in the panel's
+   * container: the page it's on, or the one it would open on if it isn't
+   * loaded.
+   *
+   * @param {boolean} inBackground
+   */
+  openInNewTab(inBackground = false) {
+    const gBrowser = new WindowWrapper().gBrowser;
+    const tab = gBrowser.addTab(this.getTabUrl() ?? this.#getStartUrl(), {
+      triggeringPrincipal: ScriptSecurityManagerWrapper.getSystemPrincipal(),
+      userContextId: this.getUserContextId(),
+      inBackground,
+    });
+    if (!inBackground) {
+      gBrowser.selectedTab = tab;
+    }
+  }
+
+  /**
+   *
+   * @param {boolean} force
+   */
+  unload(force = true) {
+    this.#log(`unloading (force=${force})`);
+    this.#stopTimer();
+    this.#stopInactivityTimer();
+    const activeWebPanelController =
+      SidebarControllers.webPanelsController.getActive();
+    if (activeWebPanelController?.getUUID() === this.getUUID()) {
+      SidebarElements.webPanelsBrowser.deselectWebPanelTab();
+    }
+
+    if (this.#tab && force) {
+      this.#removeTab();
+    }
+
+    this.#button
+      .setSoundIcon(false, false)
+      .setNotificationBadge(0)
+      .setOpen(false)
+      .setUnloaded(true);
+
+    if (this.#button.getLoading()) {
+      fetchIconURL(this.#settings.url).then((faviconUrl) => {
+        this.#button.setLoading(false).setIcon(faviconUrl);
+      });
+    }
+
+    this.#tab = null;
+    this.#loadedForHostname = null;
+  }
+
+  #startTimer() {
+    this.#stopTimer();
+    const interval = Number(this.#settings.periodicReload);
+    if (this.isUnloaded() || !Number.isFinite(interval) || interval <= 0) {
+      return;
+    }
+    this.#log("start timer", interval);
+    this.#nextReloadAt = Date.now() + interval;
+    this.#reloadTimer = setTimeout(
+      () => {
+        this.#reloadTimer = null;
+        this.#log("periodic reload");
+        this.reload();
+      },
+      Math.max(0, this.#nextReloadAt - Date.now()),
+    );
+    this.#refreshPeriodicReloadIndicator();
+  }
+
+  #stopTimer() {
+    if (this.#reloadTimer !== null) {
+      this.#log("stop timer");
+      clearTimeout(this.#reloadTimer);
+    }
+    this.#reloadTimer = null;
+    this.#nextReloadAt = null;
+    this.#refreshPeriodicReloadIndicator();
+  }
+
+  #refreshPeriodicReloadIndicator() {
+    SidebarElements.sidebarToolbar.refreshPeriodicReload(this.getUUID());
+  }
+
+  /**
+   *
+   * @returns {number?}
+   */
+  getPeriodicReloadRemaining() {
+    return this.#nextReloadAt === null
+      ? null
+      : Math.max(0, this.#nextReloadAt - Date.now());
+  }
+
+  #startInactivityTimer() {
+    this.#stopInactivityTimer();
+    const interval = Number(this.#settings.unloadAfterInactivity);
+    if (this.isUnloaded() || !Number.isFinite(interval) || interval <= 0) {
+      return;
+    }
+    this.#log("start inactivity timer", interval);
+    this.#nextInactivityUnloadAt = Date.now() + interval;
+    this.#inactivityUnloadTimer = setTimeout(
+      () => this.#onInactivityTimerFired(),
+      Math.max(0, this.#nextInactivityUnloadAt - Date.now()),
+    );
+  }
+
+  #stopInactivityTimer() {
+    if (this.#inactivityUnloadTimer !== null) {
+      this.#log("stop inactivity timer");
+      clearTimeout(this.#inactivityUnloadTimer);
+    }
+    this.#inactivityUnloadTimer = null;
+    this.#nextInactivityUnloadAt = null;
+  }
+
+  #onInactivityTimerFired() {
+    this.#inactivityUnloadTimer = null;
+    if (this.#tab?.soundPlaying) {
+      // Don't silently kill audio out from under the user (this is exactly
+      // the class of bug Firefox's own tab unloader caused - see
+      // setUndiscardable in web_panels_browser.mjs); check back later
+      // instead of unloading a panel that's actively playing sound.
+      this.#log("inactivity unload deferred: sound is playing");
+      this.#startInactivityTimer();
+      return;
+    }
+    this.#log("inactivity timeout reached");
+    this.unload();
+  }
+
+  /**
+   *
+   * @returns {number?}
+   */
+  getInactivityUnloadRemaining() {
+    return this.#nextInactivityUnloadAt === null
+      ? null
+      : Math.max(0, this.#nextInactivityUnloadAt - Date.now());
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  isUnloaded() {
+    return this.#tab === null;
+  }
+
+  reload() {
+    if (this.isUnloaded()) {
+      return;
+    }
+    this.#startTimer();
+    this.#loadedForHostname =
+      SidebarControllers.webPanelsController.getMainBrowserHostname();
+    this.#tab.linkedBrowser.reload();
+  }
+
+  /**
+   * "Reload when address changes": reloads the panel if it's shown and the
+   * main browser's active tab is on a different site than when the panel
+   * last loaded, so a page like Bitwarden's vault, which reads the current
+   * tab once when it loads, lists that site's logins. A panel that isn't
+   * shown is left alone until it's opened (see open()).
+   */
+  reloadIfSiteChanged() {
+    if (
+      !this.#settings.reloadOnUrlChange ||
+      !this.isActive() ||
+      SidebarControllers.sidebarController.closed()
+    ) {
+      return;
+    }
+    const hostname =
+      SidebarControllers.webPanelsController.getMainBrowserHostname();
+    if (hostname !== null && hostname !== this.#loadedForHostname) {
+      this.#log(`reloading: site changed to ${hostname}`);
+      this.reload();
+    }
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  canGoBack() {
+    return this.#tab.linkedBrowser.canGoBack();
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  canGoForward() {
+    return this.#tab.linkedBrowser.canGoForward();
+  }
+
+  goBack() {
+    this.#tab.linkedBrowser.goBack();
+  }
+
+  goForward() {
+    this.#tab.linkedBrowser.goForward();
+  }
+
+  goHome() {
+    this.#tab.linkedBrowser.go(this.#settings.url);
+  }
+
+  /**
+   *
+   * @param {boolean} value
+   */
+  setTemporary(value) {
+    this.#settings.temporary = value;
+    this.#button.setAttribute("temporary", value);
+  }
+
+  /**
+   * Takes effect with applyUserAgent().
+   *
+   * @param {string} userAgent an id from getUserAgentChoices()
+   * @param {string} customUserAgent sent when userAgent is "custom"
+   */
+  setUserAgent(userAgent, customUserAgent) {
+    this.#settings.userAgent = userAgent;
+    this.#settings.customUserAgent = customUserAgent;
+  }
+
+  /**
+   * Makes a loaded panel send its user agent, reloading the page if that
+   * changed it, so the site sees the new one.
+   */
+  applyUserAgent() {
+    if (this.isUnloaded()) return;
+    const changed = this.#tab.linkedBrowser.setUserAgent(
+      this.#settings.userAgent,
+      this.#settings.customUserAgent,
+    );
+    if (changed) this.reload();
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  getAlwaysOnTop() {
+    return this.#settings.alwaysOnTop;
+  }
+
+  /**
+   *
+   * @param {boolean} value
+   */
+  setAlwaysOnTop(value) {
+    this.#settings.alwaysOnTop = value;
+  }
+
+  /**
+   *
+   * @returns {number}
+   */
+  getZoom() {
+    return this.#settings.zoom;
+  }
+
+  zoomOut() {
+    const i =
+      ZoomManagerWrapper.zoomValues.indexOf(
+        ZoomManagerWrapper.snap(this.getZoom()),
+      ) - 1;
+    if (i >= 0) {
+      const zoom = ZoomManagerWrapper.zoomValues[i];
+      this.setZoom(zoom);
+    }
+  }
+
+  zoomIn() {
+    const i =
+      ZoomManagerWrapper.zoomValues.indexOf(
+        ZoomManagerWrapper.snap(this.getZoom()),
+      ) + 1;
+    if (i < ZoomManagerWrapper.zoomValues.length) {
+      const zoom = ZoomManagerWrapper.zoomValues[i];
+      this.setZoom(zoom);
+    }
+  }
+
+  /**
+   *
+   * @param {number} zoom
+   */
+  setZoom(zoom) {
+    this.#settings.zoom = zoom;
+    this.#tab?.linkedBrowser?.setZoom(zoom);
+  }
+
+  resetZoom() {
+    this.setZoom(DEFAULT_ZOOM);
+  }
+
+  /**
+   *
+   * @param {boolean} value
+   */
+  setLoadOnStartup(value) {
+    this.#settings.loadOnStartup = value;
+  }
+
+  /**
+   *
+   * @param {boolean} value
+   */
+  setLoadLastUrl(value) {
+    this.#settings.loadLastUrl = value;
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  getUnloadOnClose() {
+    return this.#settings.unloadOnClose;
+  }
+
+  /**
+   *
+   * @param {boolean} value
+   */
+  setUnloadOnClose(value) {
+    this.#settings.unloadOnClose = value;
+  }
+
+  /**
+   *
+   * @returns {number}
+   */
+  getUnloadAfterInactivity() {
+    return this.#settings.unloadAfterInactivity;
+  }
+
+  /**
+   *
+   * @param {number} value milliseconds of inactivity before auto-unload; 0 disables it
+   */
+  setUnloadAfterInactivity(value) {
+    this.#settings.unloadAfterInactivity = value;
+    if (!this.isUnloaded() && !this.isActive()) {
+      this.#startInactivityTimer();
+    }
+  }
+
+  /**
+   * @returns {string[]} the Zen spaces the panel shows in; none for all
+   */
+  getSpaces() {
+    return [...this.#settings.spaces];
+  }
+
+  /**
+   *
+   * @param {string[]} spaces
+   */
+  setSpaces(spaces) {
+    this.#settings.spaces = [...spaces];
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  isOutsideSpace() {
+    return this.#outsideSpace;
+  }
+
+  /**
+   * Hides the panel's button while it's outside the active space, closing
+   * the panel if it's open (which unloads it if it's set to unload on
+   * closing).
+   *
+   * @param {boolean} value
+   */
+  setOutsideSpace(value) {
+    this.#outsideSpace = value;
+    this.#button.setOutsideSpace(value);
+    if (
+      value &&
+      this.isActive() &&
+      !SidebarControllers.sidebarController.closed()
+    ) {
+      SidebarControllers.sidebarController.close();
+    }
+  }
+
+  /**
+   *
+   * @returns {string}
+   */
+  getShortcut() {
+    return this.#settings.shortcut;
+  }
+
+  /**
+   *
+   * @param {string} value
+   */
+  setShortcut(value) {
+    this.#settings.shortcut = value;
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  getHideToolbar() {
+    return this.#settings.hideToolbar;
+  }
+
+  /**
+   *
+   * @param {boolean} value
+   */
+  setHideToolbar(value) {
+    this.#settings.hideToolbar = value;
+  }
+
+  /**
+   *
+   * @param {boolean} value
+   */
+  setHideSoundIcon(value) {
+    this.#settings.hideSoundIcon = value;
+    this.#button.hideSoundIcon(value);
+  }
+
+  /**
+   *
+   * @param {boolean} value
+   */
+  setHideNotificationBadge(value) {
+    this.#settings.hideNotificationBadge = value;
+    this.#button.hideNotificationBadge(value);
+  }
+
+  /**
+   *
+   * @param {number} value
+   */
+  setPeriodicReload(value) {
+    this.#settings.periodicReload = value;
+    if (!this.isUnloaded()) {
+      this.#startTimer();
+    }
+  }
+
+  /**
+   *
+   * @param {boolean} value
+   */
+  setReloadOnUrlChange(value) {
+    this.#settings.reloadOnUrlChange = value;
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  getReloadOnUrlChange() {
+    return this.#settings.reloadOnUrlChange;
+  }
+
+  /**
+   *
+   * @param {number} width
+   */
+  setPinnedWidth(width) {
+    this.#settings.floatingGeometry.width = `${width}px`;
+  }
+
+  /**
+   *
+   * @returns {string}
+   */
+  getAnchor() {
+    return this.#settings.floatingGeometry.anchor;
+  }
+
+  /**
+   *
+   * @param {string} anchor
+   */
+  setAnchor(anchor) {
+    this.#settings.floatingGeometry.anchor = anchor;
+  }
+
+  /**
+   *
+   * @returns {string}
+   */
+  getOffsetXType() {
+    return this.#settings.floatingGeometry.offsetXType;
+  }
+
+  /**
+   *
+   * @param {string} offsetXType
+   */
+  setOffsetXType(offsetXType) {
+    this.#settings.floatingGeometry.offsetXType = offsetXType;
+  }
+
+  /**
+   *
+   * @returns {string}
+   */
+  getOffsetYType() {
+    return this.#settings.floatingGeometry.offsetYType;
+  }
+
+  /**
+   *
+   * @param {string} offsetYType
+   */
+  setOffsetYType(offsetYType) {
+    this.#settings.floatingGeometry.offsetYType = offsetYType;
+  }
+
+  /**
+   *
+   * @returns {string}
+   */
+  getWidthType() {
+    return this.#settings.floatingGeometry.widthType;
+  }
+
+  /**
+   *
+   * @param {string} widthType
+   */
+  setWidthType(widthType) {
+    this.#settings.floatingGeometry.widthType = widthType;
+  }
+
+  /**
+   *
+   * @returns {string}
+   */
+  getHeightType() {
+    return this.#settings.floatingGeometry.heightType;
+  }
+
+  /**
+   *
+   * @param {string} heightType
+   */
+  setHeightType(heightType) {
+    this.#settings.floatingGeometry.heightType = heightType;
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  getSelectorEnabled() {
+    return this.#settings.selectorEnabled;
+  }
+
+  /**
+   *
+   * @param {boolean} value
+   */
+  setSelectorEnabled(value) {
+    this.#settings.selectorEnabled = value;
+  }
+
+  /**
+   *
+   * @returns {string?}
+   */
+  getSelector() {
+    return this.#settings.selector;
+  }
+
+  /**
+   *
+   * @param {string} selector
+   */
+  setSelector(selector) {
+    this.#settings.selector = selector;
+  }
+
+  /**
+   *
+   * @returns {FloatingWebPanelGeometrySettings}
+   */
+  getFloatingGeometry() {
+    return this.#settings.floatingGeometry;
+  }
+
+  /**
+   *
+   * @param {FloatingWebPanelGeometrySettings} geometry
+   */
+  setFloatingGeometry(geometry) {
+    this.#settings.floatingGeometry = geometry;
+  }
+
+  /**
+   *
+   * @returns {PinnedWebPanelGeometrySettings}
+   */
+  getPinnedGeometry() {
+    return this.#settings.pinnedGeometry;
+  }
+
+  /**
+   *
+   * @param {string} width
+   */
+  setPinnedGeometry(width) {
+    this.#settings.pinnedGeometry.width = width;
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  pinned() {
+    return this.#settings.pinned;
+  }
+
+  pin() {
+    this.#settings.pinned = true;
+  }
+
+  unpin() {
+    this.#settings.pinned = false;
+  }
+
+  /**
+   *
+   * @param {string} url
+   */
+  go(url) {
+    this.#tab.linkedBrowser.go(url);
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  isMuted() {
+    return this.#tab.muted;
+  }
+
+  toggleMuteAudio() {
+    this.#tab.toggleMuteAudio();
+  }
+
+  /**
+   * Mutes or unmutes a loaded panel; an unloaded one is left alone.
+   *
+   * @param {boolean} muted
+   */
+  setMuted(muted) {
+    if (!this.isUnloaded() && this.#tab.muted !== muted) {
+      this.#tab.toggleMuteAudio();
+    }
+  }
+
+  remove() {
+    this.#stopTimer();
+    this.#stopInactivityTimer();
+    if (this.#tab) {
+      this.#removeTab();
+    }
+    this.#button.remove();
+  }
+
+  /**
+   * Removing the underlying tab can throw (e.g. a Gecko internal reformats
+   * the hidden panel window's urlbar during permitUnload and hits a null
+   * editor there). Swallow that here rather than in the two call sites so
+   * our own cleanup - resetting #tab, the button state, removing the
+   * button - always runs and we never keep tracking a panel as "loaded"
+   * when its tab removal failed.
+   */
+  #removeTab() {
+    const removed = safeCall(
+      () => SidebarElements.webPanelsBrowser.removeWebPanelTab(this.#tab),
+      `Web panel ${this.getUUID()}: failed to remove tab`,
+    );
+    if (removed) this.#log("tab removed");
+  }
+
+  /**
+   *
+   * @returns {WebPanelSettings}
+   */
+  dumpSettings() {
+    return WebPanelSettings.fromObject(
+      SidebarElements.sidebarWrapper.getPosition(),
+      SidebarControllers.sidebarGeometry.getDefaultFloatingOffsetCSS(),
+      this.#settings.toObject(),
+    );
+  }
+
+  /**
+   *
+   * @returns {WebPanelState}
+   */
+  dumpState() {
+    return WebPanelState.fromObject(this.#state.toObject());
+  }
+
+  /**
+   *
+   * @param {Array<*>} args
+   */
+  #log(...args) {
+    Logger.debug(`Web panel ${this.getUUID()}:`, ...args);
+  }
+}
