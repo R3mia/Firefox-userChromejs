@@ -1,0 +1,283 @@
+
+/* ============================================================================
+   ZEN URL BAR — PULSE DOTS v14 | SMOOTH CONVERGENCE
+
+   Keeps the v12 rhythmic dots, native Zen URL bar and hover reveal.
+   On mouse leave, two halves slide inward and meet at the center.
+
+   Performance changes from v13:
+   - clip-path is STATIC (never animated).
+   - Horizontal travel uses GPU-friendly translate3d() with ONE easing curve.
+   - Small vertical ripples use the separate CSS `translate` property.
+   - Ambient breathing changes opacity, not filter/brightness.
+   - Original dot sizes, positions, colors and 160px repeat are preserved.
+
+   INSTALL:
+   Remove all previous custom URL bar rules/imports (v1-v13).
+   Paste this COMPLETE stylesheet into userChrome.css, then restart Zen.
+   Keep your separate Minimal Toolbar Buttons stylesheet.
+   ============================================================================ */
+
+/* 01 — Appearance and timing. No geometry changes to the native URL bar. */
+#urlbar {
+  --zdp-side-gap: 8px;
+  --zdp-pattern-width: 160px;
+
+  --zdp-muted: #999999;
+  --zdp-soft: #b7b7b7;
+  --zdp-normal: #d0d0d0;
+  --zdp-bright: #eeeeee;
+
+  --zdp-reveal-duration: 220ms;
+  --zdp-converge-duration: 950ms;
+  --zdp-breath-duration: 7s;
+  --zdp-travel-ease: cubic-bezier(.22, .72, .24, 1);
+}
+
+/* 02 — Same light/dark colors as the v12 pattern. */
+@media (prefers-color-scheme: light) {
+  #urlbar {
+    --zdp-muted: #999999;
+    --zdp-soft: #797979;
+    --zdp-normal: #5f5f5f;
+    --zdp-bright: #363636;
+  }
+}
+
+#nav-bar[brighttext] #urlbar,
+#navigator-toolbox[brighttext] #urlbar {
+  --zdp-muted: #999999;
+  --zdp-soft: #b7b7b7;
+  --zdp-normal: #d0d0d0;
+  --zdp-bright: #eeeeee;
+}
+
+/* 03 — Position decoration without resizing or repainting the native shell. */
+#urlbar .urlbar-input-container {
+  position: relative !important;
+}
+
+/* Prevent the off-screen arriving halves from drawing over nearby buttons.
+   Only clip while idle; focused/open URL bar stays entirely native. */
+#urlbar:not(:is(
+  :hover, :focus-within, [focused], [breakout-extend], [open], [searchmode],
+  :has(#notification-popup-box:not([hidden]))
+)) .urlbar-input-container {
+  overflow: clip !important;
+}
+
+/* 04 — The real input/buttons keep their layout; only opacity changes. */
+#urlbar .urlbar-input-container > :is(
+  .searchmode-switcher,
+  #trust-icon-container,
+  #tracking-protection-icon-container,
+  #identity-box,
+  #urlbar-label-box,
+  #urlbar-search-mode-indicator,
+  .urlbar-input-box,
+  #urlbar-revert-button-container,
+  .urlbar-go-button,
+  #page-action-buttons,
+  #zen-copy-url-button
+) {
+  transition: opacity var(--zdp-reveal-duration) ease !important;
+}
+
+#urlbar:not(:is(
+  :hover, :focus-within, [focused], [breakout-extend], [open], [searchmode],
+  :has(#notification-popup-box:not([hidden]))
+)) .urlbar-input-container > :is(
+  .searchmode-switcher,
+  #trust-icon-container,
+  #tracking-protection-icon-container,
+  #identity-box,
+  #urlbar-label-box,
+  #urlbar-search-mode-indicator,
+  .urlbar-input-box,
+  #urlbar-revert-button-container,
+  .urlbar-go-button,
+  #page-action-buttons,
+  #zen-copy-url-button
+) {
+  opacity: 0 !important;
+}
+
+/* 05 — Two full-size copies of the ORIGINAL v12 pattern.
+   Each has a permanently clipped half. At rest, together they form the
+   exact original dot strip with no seam or phase shift at the midpoint. */
+#urlbar .urlbar-input-container::before,
+#urlbar .urlbar-input-container::after {
+  content: "" !important;
+  position: absolute !important;
+  inset-inline: var(--zdp-side-gap) !important;
+  inset-block: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+
+  background-image:
+    radial-gradient(circle 1.5px at 10px 55%, var(--zdp-muted) 70%, transparent 100%),
+    radial-gradient(circle 1.9px at 30px 51%, var(--zdp-soft) 74%, transparent 100%),
+    radial-gradient(circle 2.4px at 50px 45%, var(--zdp-normal) 75%, transparent 100%),
+    radial-gradient(circle 3.1px at 70px 48%, var(--zdp-bright) 76%, transparent 100%),
+    radial-gradient(circle 2.6px at 90px 51%, var(--zdp-normal) 75%, transparent 100%),
+    radial-gradient(circle 2.2px at 110px 55%, var(--zdp-soft) 74%, transparent 100%),
+    radial-gradient(circle 1.8px at 130px 54%, var(--zdp-normal) 73%, transparent 100%),
+    radial-gradient(circle 1.4px at 150px 50%, var(--zdp-muted) 70%, transparent 100%) !important;
+
+  background-size: var(--zdp-pattern-width) 100% !important;
+  background-repeat: repeat-x !important;
+  background-position: left center !important;
+
+  /* Static fade matches v12. Never animate this mask. */
+  -webkit-mask-image: linear-gradient(to right,
+    transparent 0%, black 5%, black 95%, transparent 100%) !important;
+  mask-image: linear-gradient(to right,
+    transparent 0%, black 5%, black 95%, transparent 100%) !important;
+
+  pointer-events: none !important;
+  user-select: none !important;
+  z-index: 2 !important;
+  opacity: .96;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transition: opacity var(--zdp-reveal-duration) ease !important;
+}
+
+/* Fixed half masks: the clipping itself is NEVER animated. */
+#urlbar .urlbar-input-container::before {
+  clip-path: inset(0 50% 0 0) !important;
+}
+#urlbar .urlbar-input-container::after {
+  clip-path: inset(0 0 0 50%) !important;
+}
+
+/* 06 — Idle triggers a fresh entrance after each mouse leave.
+   Only transform and translate change during the converge animation.
+   The delayed opacity breathing begins after the two halves have joined. */
+#urlbar:not(:is(
+  :hover, :focus-within, [focused], [breakout-extend], [open], [searchmode],
+  :has(#notification-popup-box:not([hidden]))
+)) .urlbar-input-container::before {
+  animation:
+    zdp-smooth-left var(--zdp-converge-duration) var(--zdp-travel-ease) both,
+    zdp-ripple-left var(--zdp-converge-duration) ease-in-out both,
+    zdp-ambient-opacity var(--zdp-breath-duration) ease-in-out
+      var(--zdp-converge-duration) infinite !important;
+}
+
+#urlbar:not(:is(
+  :hover, :focus-within, [focused], [breakout-extend], [open], [searchmode],
+  :has(#notification-popup-box:not([hidden]))
+)) .urlbar-input-container::after {
+  animation:
+    zdp-smooth-right var(--zdp-converge-duration) var(--zdp-travel-ease) both,
+    zdp-ripple-right var(--zdp-converge-duration) ease-in-out both,
+    zdp-ambient-opacity var(--zdp-breath-duration) ease-in-out
+      var(--zdp-converge-duration) infinite !important;
+}
+
+/* Each half moves exactly one half-strip width, never stretches the dots. */
+@keyframes zdp-smooth-left {
+  from { transform: translate3d(-50%, 0, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes zdp-smooth-right {
+  from { transform: translate3d(50%, 0, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
+
+/* A restrained vertical ripple. This is independent of horizontal travel. */
+@keyframes zdp-ripple-left {
+  0%, 100% { translate: 0 0; }
+  22% { translate: 0 -1.1px; }
+  48% { translate: 0 1px; }
+  73% { translate: 0 -.45px; }
+}
+
+@keyframes zdp-ripple-right {
+  0%, 100% { translate: 0 0; }
+  22% { translate: 0 1.1px; }
+  48% { translate: 0 -1px; }
+  73% { translate: 0 .45px; }
+}
+
+/* Gentle, compositor-friendly breathing after the entrance. */
+@keyframes zdp-ambient-opacity {
+  0%, 100% { opacity: .92; }
+  50% { opacity: .98; }
+}
+
+/* 07 — Native URL bar during hover, focus, search and notifications.
+   Removing the entrance animation here resets it for the next mouse leave. */
+#urlbar:is(
+  :hover, :focus-within, [focused], [breakout-extend], [open], [searchmode],
+  :has(#notification-popup-box:not([hidden]))
+) .urlbar-input-container::before,
+#urlbar:is(
+  :hover, :focus-within, [focused], [breakout-extend], [open], [searchmode],
+  :has(#notification-popup-box:not([hidden]))
+) .urlbar-input-container::after {
+  animation: none !important;
+  opacity: 0 !important;
+  transform: translate3d(0, 0, 0) !important;
+  translate: 0 0 !important;
+}
+
+#urlbar:is(
+  :hover, :focus-within, [focused], [breakout-extend], [open], [searchmode],
+  :has(#notification-popup-box:not([hidden]))
+) .urlbar-input-container > :is(
+  .searchmode-switcher,
+  #trust-icon-container,
+  #tracking-protection-icon-container,
+  #identity-box,
+  #urlbar-label-box,
+  #urlbar-search-mode-indicator,
+  .urlbar-input-box,
+  #urlbar-revert-button-container,
+  .urlbar-go-button,
+  #page-action-buttons,
+  #zen-copy-url-button
+) {
+  opacity: 1 !important;
+}
+
+/* 08 — Never hide real controls in Customize Toolbar mode. */
+:is(#main-window[customizing], :root[customizing])
+#urlbar .urlbar-input-container::before,
+:is(#main-window[customizing], :root[customizing])
+#urlbar .urlbar-input-container::after {
+  display: none !important;
+  animation: none !important;
+}
+
+:is(#main-window[customizing], :root[customizing])
+#urlbar .urlbar-input-container > * {
+  opacity: 1 !important;
+}
+
+@media (max-width: 650px) {
+  #urlbar { --zdp-side-gap: 5px; }
+}
+
+/* 09 — Reduced motion: complete v12 dots appear instantly when idle. */
+@media (prefers-reduced-motion: reduce) {
+  #urlbar .urlbar-input-container::before,
+  #urlbar .urlbar-input-container::after {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    translate: none !important;
+  }
+  #urlbar .urlbar-input-container > * {
+    transition: none !important;
+  }
+}

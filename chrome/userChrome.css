@@ -1,0 +1,62 @@
+/*=====================================================================================================
+========================================== F I R E F O X   T H E M E   E N T R Y   P O I N T ==========================================
+=====================================================================================================*
+
+DESCRIPTION: This is the main userChrome.css file that serves as the entry point for the entire Firefox theme customization.
+This file imports all modular CSS components and orchestrates the overall browser UI styling.
+
+ORIGIN: Current design derived from Firefox Mod-Blur theme with extensive modifications and enhancements.
+
+ARCHITECTURE: This file follows a modular import pattern where each CSS file handles a specific component or functionality.
+The imports are organized in a logical order to ensure proper cascading and dependency resolution.
+
+IMPORTANT: This file only contains @import statements - all actual styling is done in the imported modules.
+This separation allows for better maintainability and selective enabling/disabling of features.
+
+=====================================================================================================
+========================================== C O R E   S T Y L E S   I M P O R T S ==========================================
+=====================================================================================================*/
+
+
+/*=====================================================================================================
+IMPORT: Window Controls Styling
+PURPOSE: Customizes minimize, maximize, and close buttons
+DESCRIPTION: Hide window control button
+=====================================================================================================*/
+@import url("CSS/chrome/hide_window_controls.css");
+/*=====================================================================================================
+
+/* ==========================================================================
+IMPORT: MINIMAL TOOLBAR BUTTONS — ZEN BROWSER v8
+PURPOSE: DOM-verified approach for pinned extension and navigation buttons
+====================================================================================================*/
+@import url("CSS/chrome/minimal_toolbarbuttons_zen.css");
+
+/* ============================================================================
+IMPORT: ZEN GHOST URL BAR — v1.0
+PURPOSE: Compact search pill | Expand on hover | Native floating URL bar preserved
+====================================================================================================*/
+@import url("CSS/chrome/ghost_urlbar.css");
+
+/* ============================================================================
+IMPORT: ZEN BROWSER — COMPACT ESSENTIALS / SEVEN COLUMNS
+   Purpose:
+   - Show exactly seven Essentials per row in the expanded sidebar.
+   - Make each tile and favicon smaller without resizing regular tabs.
+   - Preserve Zen's selected/hover backgrounds, favicon color and drag logic.
+   - Leave the collapsed sidebar and hidden container sections untouched.
+
+   Target DOM supplied by the user:
+   #zen-essentials > .zen-essentials-container > .tabbrowser-tab[zen-essential]
+   NOTE: Seven 28px tabs + gaps need roughly 225px of available sidebar width.
+   ============================================================================ */
+@import url("CSS/chrome/zen_essentials_compactl.css");
+
+/* ============================================================================
+IMPORT: ZEN BROWSER - NO SCROLLBAR SIDEBAR — v1.0
+PURPOSE: UHM NO SLIDER IN SIDEBAR NO ?
+====================================================================================================*/
+@import url("CSS/chrome/no_scrollbar_sidebar_zen.css");
+
+@import url("CSS/chrome/zen_back_forward.css");
+

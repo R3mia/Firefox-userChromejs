@@ -1,0 +1,9 @@
+/*=====================================================================================================
+IMPORT: Window Controls Styling
+PURPOSE: Customizes minimize, maximize, and close buttons
+DESCRIPTION: Hide window control button
+=====================================================================================================*/
+.titlebar-buttonbox-container,
+.titlebar-buttonbox {
+    display: none !important;
+}

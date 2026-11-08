@@ -1,0 +1,494 @@
+
+/* ============================================================================
+   ZEN BROWSER / FIREFOX — ABOUT:ADDONS MICROSOFT STORE UI v4
+   Fixed: clipped extension menus + over-stretched Manage/Details pages.
+   Automatically follows light/dark website appearance.
+
+   IMPORTANT: Replace the ENTIRE previous about-addons.css with this file.
+   Do not load any older about:addons CSS alongside this stylesheet.
+   In userContent.css: @import url("about-addons.css");
+   ============================================================================ */
+
+@-moz-document url-prefix("about:addons"),
+               url-prefix("chrome://mozapps/content/extensions/aboutaddons.html") {
+
+  /* 01 — Color palette: light */
+  :root {
+    color-scheme: light !important;
+    --aa-bg: #f4f5f7;
+    --aa-header: #ffffff;
+    --aa-surface: #ffffff;
+    --aa-rail: #eef0f3;
+    --aa-control: #f1f3f5;
+    --aa-hover: #e7edf5;
+    --aa-text: #20252d;
+    --aa-muted: #5a6574;
+    --aa-line: #d7dde5;
+    --aa-accent: #006fbd;
+    --aa-accent-hover: #005a99;
+    --aa-selected: #dbeaf9;
+    --aa-rail-width: 64px;
+    --aa-padding: 24px;
+    --aa-gap: 12px;
+
+    --sidebar-width: var(--aa-rail-width) !important;
+    --main-margin-start: var(--aa-padding) !important;
+    --main-margin-end: var(--aa-padding) !important;
+    --in-content-page-background: var(--aa-bg) !important;
+    --in-content-page-color: var(--aa-text) !important;
+    --in-content-box-background: var(--aa-surface) !important;
+    --in-content-box-border-color: var(--aa-line) !important;
+    --background-color-canvas: var(--aa-bg) !important;
+    --background-color-box: var(--aa-surface) !important;
+    --text-color: var(--aa-text) !important;
+    --text-color-deemphasized: var(--aa-muted) !important;
+    --link-color: var(--aa-accent) !important;
+  }
+
+  /* 02 — Color palette: dark */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark !important;
+      --aa-bg: #181b21;
+      --aa-header: #222731;
+      --aa-surface: #262c36;
+      --aa-rail: #20252c;
+      --aa-control: #343b46;
+      --aa-hover: #404a57;
+      --aa-text: #f2f4f8;
+      --aa-muted: #bdc6d2;
+      --aa-line: #47505d;
+      --aa-accent: #83bcff;
+      --aa-accent-hover: #b1d6ff;
+      --aa-selected: #29425b;
+    }
+  }
+
+  /* 03 — Main page and heading; prevent header overlay */
+  html, body {
+    background: var(--aa-bg) !important;
+    color: var(--aa-text) !important;
+    font-family: "Segoe UI", system-ui, sans-serif !important;
+    font-size: 13px !important;
+    overflow-x: hidden !important;
+  }
+
+  #full {
+    display: grid !important;
+    grid-template-columns: var(--aa-rail-width) minmax(0, 1fr) !important;
+    min-height: 100vh !important;
+  }
+
+  #content { min-width: 0 !important; background: var(--aa-bg) !important; }
+
+  #page-header {
+    position: static !important;
+    z-index: auto !important;
+    background: var(--aa-header) !important;
+    color: var(--aa-text) !important;
+    border-bottom: 1px solid var(--aa-line) !important;
+  }
+
+  #page-header .sticky-container {
+    position: static !important;
+    z-index: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 18px var(--aa-padding) !important;
+    background: var(--aa-header) !important;
+  }
+
+  #page-header .main-heading {
+    order: 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    background: transparent !important;
+  }
+
+  #page-header :is(.header-name, .main-heading h1) {
+    color: var(--aa-text) !important;
+    font-size: 21px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+    margin: 0 !important;
+  }
+
+  #page-header .main-search {
+    order: 1 !important;
+    position: static !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  #page-header .search-label { color: var(--aa-muted) !important; }
+  #page-header search-addons { flex: 0 1 430px !important; min-width: 160px !important; max-width: 100% !important; }
+  #page-header search-addons > moz-input-search { width: 100% !important; min-width: 0 !important; }
+  #page-header .page-options-menu { margin-inline-start: auto !important; }
+
+  #main {
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 20px var(--aa-padding) 36px !important;
+    background: var(--aa-bg) !important;
+  }
+  #main > addon-list { width: 100% !important; min-width: 0 !important; }
+
+  /* 04 — Sidebar: Firefox 158+ icon-only navigation */
+  #sidebar {
+    --page-nav-collapsed: collapsed;
+    --page-nav-margin-inline-start: 0px !important;
+    position: sticky !important;
+    top: 0 !important;
+    height: 100vh !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 12px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    background: var(--aa-rail) !important;
+    border-inline-end: 1px solid var(--aa-line) !important;
+  }
+  #sidebar :is(categories-box, moz-page-nav) {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+  #sidebar moz-page-nav-button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    margin: 3px auto !important;
+    border-radius: 7px !important;
+    color: var(--aa-muted) !important;
+  }
+  #sidebar moz-page-nav-button:hover { background: var(--aa-control) !important; }
+  #sidebar moz-page-nav-button:is([selected], [aria-current="page"]) {
+    color: var(--aa-accent) !important;
+    background: var(--aa-selected) !important;
+    box-shadow: inset 3px 0 0 var(--aa-accent) !important;
+  }
+
+  /* 05 — EXTENSION LIST VIEW ONLY. Never apply grid/card sizing to Details. */
+  #main > addon-list[type="extension"] > section {
+    display: grid !important; /* Overrides built-in flex, but only here. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr)) !important;
+    gap: var(--aa-gap) !important;
+    align-items: stretch !important;
+    align-content: start !important;
+    margin: 0 !important;
+    padding: 0 0 20px !important;
+  }
+
+  #main > addon-list[type="extension"] > section > :is(
+    .list-section-heading, .section-heading, .list-section-subheading, h2, h3
+  ) {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    margin: 12px 0 0 !important;
+    padding: 0 0 9px !important;
+    color: var(--aa-text) !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    border-bottom: 1px solid var(--aa-line) !important;
+  }
+
+  #main > addon-list[type="extension"] > section > addon-card:not([expanded]) {
+    box-sizing: border-box !important;
+    display: block !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    contain: none !important;
+  }
+
+  #main > addon-list[type="extension"] > section > addon-card:not([expanded]) > .addon.card {
+    --card-background-color: var(--aa-surface) !important;
+    --card-text-color: var(--aa-text) !important;
+    --card-border: 1px solid var(--aa-line) !important;
+    --card-border-radius: 8px !important;
+    --card-box-shadow: none !important;
+    --card-padding: 14px !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    min-height: 112px !important;
+    height: 100% !important;
+    margin: 0 !important;
+    background: var(--aa-surface) !important;
+    color: var(--aa-text) !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    /* Do not force overflow:hidden on the entire card/menu. */
+  }
+
+  #main > addon-list[type="extension"] > section > addon-card:not([expanded]):hover > .addon.card {
+    --card-border: 1px solid var(--aa-accent) !important;
+  }
+
+  #main > addon-list[type="extension"] addon-card:not([expanded]) .addon-card-collapsed {
+    display: flex !important;
+    align-items: flex-start !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 12px !important;
+  }
+
+  #main > addon-list[type="extension"] addon-card:not([expanded]) .addon-icon {
+    box-sizing: border-box !important;
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    margin: 0 !important;
+    border-radius: 5px !important;
+    object-fit: contain !important;
+  }
+
+  #main > addon-list[type="extension"] addon-card:not([expanded]) .card-contents {
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex: 1 1 0 !important;
+    flex-direction: column !important;
+    width: auto !important;  /* Avoid Firefox's 1px ellipsis width in grid. */
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    white-space: normal !important;
+    /* Crucial: do not clip the menu via overflow:hidden here. */
+    overflow: visible !important;
+  }
+
+  #main > addon-list[type="extension"] addon-card:not([expanded]) .addon-name-container {
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 30px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 5px !important;
+    overflow: visible !important;
+  }
+
+  #main > addon-list[type="extension"] addon-card:not([expanded]) .addon-name {
+    display: block !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    color: var(--aa-text) !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 20px !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+  #main > addon-list[type="extension"] addon-card:not([expanded]) .addon-name-link {
+    display: block !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    color: inherit !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+  #main > addon-list[type="extension"] addon-card:not([expanded]) .spacer {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+  }
+  #main > addon-list[type="extension"] addon-card:not([expanded]) :is(
+    .extension-enable-button, .theme-enable-button, .more-options-button,
+    .addon-badge, mlmodel-card-header-additions
+  ) {
+    flex-shrink: 0 !important;
+  }
+
+  /* Keep native moz-button dimensions and shadow-root icon rendering intact.
+     Never force width:30px/44px, display:inline-block or overflow:hidden here. */
+  #main > addon-list[type="extension"] addon-card:not([expanded]) .more-options-button {
+    margin: 0 !important;
+    padding: 0 !important;
+    align-self: center !important;
+    flex: 0 0 auto !important;
+    position: static !important;
+    z-index: auto !important;
+    color: var(--aa-muted) !important;
+    fill: currentColor !important;
+    -moz-context-properties: fill, stroke !important;
+  }
+  #main > addon-list[type="extension"] addon-card:not([expanded]) .more-options-button:hover {
+    background: var(--aa-control) !important;
+  }
+
+  #main > addon-list[type="extension"] addon-card:not([expanded]) .addon-description {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    margin-top: 6px !important;
+    overflow: hidden !important;
+    color: var(--aa-muted) !important;
+    font-size: 12px !important;
+    line-height: 18px !important;
+    white-space: normal !important;
+  }
+
+  /* 06 — DETAILS / MANAGE VIEW ONLY: bound the width, restore native layout. */
+  #main:has(addon-card[expanded]) {
+    width: 100% !important;
+    max-width: 1100px !important;
+    margin-inline: auto !important;
+    padding: 20px var(--aa-padding) 44px !important;
+  }
+
+  #main addon-card[expanded] {
+    display: block !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    contain: none !important;
+  }
+  #main addon-card[expanded] > .addon.card {
+    --card-background-color: var(--aa-surface) !important;
+    --card-text-color: var(--aa-text) !important;
+    --card-border: 1px solid var(--aa-line) !important;
+    --card-border-radius: 8px !important;
+    --card-box-shadow: none !important;
+    --card-padding: 20px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    color: var(--aa-text) !important;
+    background: var(--aa-surface) !important;
+    border-radius: 8px !important;
+  }
+  #main addon-card[expanded] .addon-card-collapsed {
+    display: flex !important;
+    align-items: flex-start !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  #main addon-card[expanded] .card-contents {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    overflow: visible !important;
+  }
+  #main addon-card[expanded] .addon-name-container {
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    width: auto !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+  #main addon-card[expanded] .addon-name {
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
+    color: var(--aa-text) !important;
+    font-size: 18px !important;
+  }
+  #main addon-card[expanded] .addon-description {
+    display: block !important;
+    max-height: none !important;
+    overflow: visible !important;
+    color: var(--aa-muted) !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+    white-space: normal !important;
+  }
+  #main addon-card[expanded] :is(.addon-detail-row, .addon-detail-table-row) {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    border-color: var(--aa-line) !important;
+  }
+  #main addon-card[expanded] a {
+    overflow-wrap: anywhere !important;
+  }
+
+  /* 07 — Other about:addons views: do not grid Themes or Plugins. */
+  #main > addon-list:not([type="extension"]) > section {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  #content a { color: var(--aa-accent) !important; }
+  #content a:hover { color: var(--aa-accent-hover) !important; }
+  #content :focus-visible {
+    outline: 2px solid var(--aa-accent) !important;
+    outline-offset: 2px !important;
+  }
+  #page-header :is(input, moz-input-search),
+  #main :is(input, textarea, select) {
+    color: var(--aa-text) !important;
+    accent-color: var(--aa-accent) !important;
+  }
+
+  /* 08 — Responsive sizing */
+  @media (max-width: 1000px) {
+    :root { --aa-rail-width: 58px; --aa-padding: 16px; }
+    #main > addon-list[type="extension"] > section {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 345px), 1fr)) !important;
+    }
+  }
+  @media (max-width: 650px) {
+    :root { --aa-rail-width: 52px; --aa-padding: 12px; }
+    #main > addon-list[type="extension"] > section {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+    #page-header .search-label { display: none !important; }
+    #main > addon-list[type="extension"] addon-card:not([expanded]) .addon-icon {
+      flex-basis: 34px !important;
+      width: 34px !important;
+      min-width: 34px !important;
+      height: 34px !important;
+      min-height: 34px !important;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #main addon-card > .addon.card { transition: none !important; }
+  }
+}

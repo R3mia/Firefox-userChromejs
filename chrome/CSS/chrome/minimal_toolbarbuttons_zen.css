@@ -1,0 +1,451 @@
+
+/* ============================================================================
+   ZEN MINIMAL TOOLBAR BUTTONS — v19
+   Restored Extension Dots | Individual Hover | Native Library Animation
+
+   Based on MrOtherGuy's minimal_toolbarbuttons_v3.css (MPL-2.0):
+   https://github.com/MrOtherGuy/firefox-csshacks
+
+   FEATURES:
+   - Restore dots for pinned extensions, including uBlock Origin
+   - Individual icon reveal on hover and keyboard focus
+   - Extension badges appear only on hover/focus
+   - Keep native Zen Library sprite animation
+   - Support Zen Site Data and application menu
+   - Preserve toolbar dimensions, click areas and native controls
+   - Neutral silver dots with light/dark support
+
+   INSTALL:
+   1. Remove all older Minimal Toolbar Buttons stylesheets.
+   2. Paste this complete CSS at the end of userChrome.css.
+   3. Restart Zen Browser.
+
+   The separate Zen URL Bar Pulse Dots stylesheet is not modified.
+   ============================================================================ */
+
+
+/* ============================================================================
+   01. ALL SUPPORTED TOOLBAR BUTTONS
+
+   Extension icons are deliberately INCLUDED again.
+   ============================================================================ */
+
+:is(
+  #nav-bar #nav-bar-customization-target .toolbarbutton-1,
+  #zen-sidebar-top-buttons .toolbarbutton-1,
+  #zen-sidebar-foot-buttons .toolbarbutton-1,
+  #zen-sidebar-bottom-buttons .toolbarbutton-1,
+  #PanelUI-menu-button,
+  #zen-site-data-icon-button
+):not(:where(
+  #zen-library-button,
+  .titlebar-button,
+  .unified-extensions-item-menu-button,
+  .subviewbutton,
+  .bookmark-item,
+  #urlbar-zoom-button,
+  #zen-workspaces-button,
+  #zen-current-workspace-indicator,
+  #zen-media-focus-button
+)) {
+  --uc-mtb-dot-size: 7px;
+  --uc-mtb-visible-dot: var(--uc-mtb-dot-size);
+  --uc-mtb-dot-color: #d6d6d6;
+
+  --uc-mtb-icon-opacity: 0;
+  --uc-mtb-icon-scale: 0.86;
+
+  --uc-mtb-duration: 185ms;
+  --uc-mtb-ease: cubic-bezier(.22, 1, .36, 1);
+
+  background-image: radial-gradient(
+    circle at center,
+    var(--uc-mtb-dot-color) 0 2px,
+    color-mix(
+      in srgb,
+      var(--uc-mtb-dot-color) 65%,
+      transparent
+    ) 2.35px,
+    transparent 2.85px
+  ) !important;
+
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+
+  background-size:
+    var(--uc-mtb-visible-dot)
+    var(--uc-mtb-visible-dot) !important;
+
+  transition:
+    background-size var(--uc-mtb-duration)
+    var(--uc-mtb-ease) !important;
+}
+
+
+/* ============================================================================
+   02. NEUTRAL LIGHT / DARK COLORS
+   ============================================================================ */
+
+#zen-library-button {
+  --uc-mtb-dot-color: #d6d6d6;
+}
+
+@media (prefers-color-scheme: light) {
+  :is(
+    #nav-bar #nav-bar-customization-target .toolbarbutton-1,
+    #zen-sidebar-top-buttons .toolbarbutton-1,
+    #zen-sidebar-foot-buttons .toolbarbutton-1,
+    #zen-sidebar-bottom-buttons .toolbarbutton-1,
+    #PanelUI-menu-button,
+    #zen-site-data-icon-button,
+    #zen-library-button
+  ) {
+    --uc-mtb-dot-color: #707070;
+  }
+}
+
+/* Zen may use dark chrome even with a light OS theme. */
+
+#nav-bar[brighttext] #nav-bar-customization-target .toolbarbutton-1,
+#nav-bar[brighttext] #PanelUI-menu-button,
+#nav-bar[brighttext] #zen-site-data-icon-button,
+#nav-bar[brighttext] #zen-library-button,
+#navigator-toolbox[brighttext] #PanelUI-menu-button,
+#navigator-toolbox[brighttext] #zen-library-button,
+#zen-sidebar-top-buttons[brighttext] .toolbarbutton-1,
+#zen-sidebar-foot-buttons[brighttext] .toolbarbutton-1,
+#zen-sidebar-bottom-buttons[brighttext] .toolbarbutton-1 {
+  --uc-mtb-dot-color: #d6d6d6;
+}
+
+
+/* ============================================================================
+   03. TOOLBAR ICON ANIMATION
+
+   Includes pinned WebExtensions.
+
+   Example DOM:
+   #ublock0_raymondhill_net-BAP
+     > .toolbarbutton-badge-stack
+       > .toolbarbutton-icon
+       > .toolbarbutton-badge
+   ============================================================================ */
+
+:is(
+  #nav-bar #nav-bar-customization-target .toolbarbutton-1,
+  #zen-sidebar-top-buttons .toolbarbutton-1,
+  #zen-sidebar-foot-buttons .toolbarbutton-1,
+  #zen-sidebar-bottom-buttons .toolbarbutton-1,
+  #PanelUI-menu-button
+):not(:where(
+  #zen-library-button,
+  .titlebar-button,
+  .unified-extensions-item-menu-button,
+  .subviewbutton,
+  .bookmark-item,
+  #urlbar-zoom-button,
+  #zen-workspaces-button,
+  #zen-current-workspace-indicator,
+  #zen-media-focus-button
+)) .toolbarbutton-icon {
+  opacity: var(--uc-mtb-icon-opacity) !important;
+
+  transform: scale(var(--uc-mtb-icon-scale)) !important;
+  transform-origin: center center !important;
+
+  transition:
+    opacity var(--uc-mtb-duration) ease,
+    transform var(--uc-mtb-duration)
+    var(--uc-mtb-ease) !important;
+}
+
+
+/* ============================================================================
+   04. ZEN SITE DATA ICON
+
+   Its native image is an unclassed direct child.
+   Leave the boost-animation layer untouched.
+   ============================================================================ */
+
+#zen-site-data-icon-button > :first-child {
+  opacity: var(--uc-mtb-icon-opacity) !important;
+
+  transform: scale(var(--uc-mtb-icon-scale)) !important;
+  transform-origin: center center !important;
+
+  transition:
+    opacity var(--uc-mtb-duration) ease,
+    transform var(--uc-mtb-duration)
+    var(--uc-mtb-ease) !important;
+}
+
+
+/* ============================================================================
+   05. INDIVIDUAL HOVER / FOCUS
+
+   Reveal only the interacted button.
+   Never reveal all icons through #nav-bar:hover.
+   ============================================================================ */
+
+:is(
+  #nav-bar #nav-bar-customization-target .toolbarbutton-1,
+  #zen-sidebar-top-buttons .toolbarbutton-1,
+  #zen-sidebar-foot-buttons .toolbarbutton-1,
+  #zen-sidebar-bottom-buttons .toolbarbutton-1,
+  #PanelUI-menu-button,
+  #zen-site-data-icon-button
+):is(
+  :hover,
+  :focus-visible,
+  :focus-within,
+  [open],
+  [checked="true"],
+  [attention],
+  [badge-status],
+  [aria-expanded="true"]
+) {
+  --uc-mtb-visible-dot: 0px;
+  --uc-mtb-icon-opacity: 1;
+  --uc-mtb-icon-scale: 1;
+}
+
+
+/* ============================================================================
+   06. PINNED EXTENSION ROW HOVER
+
+   Some extension actions receive hover via their parent row.
+   ============================================================================ */
+
+#nav-bar #nav-bar-customization-target
+.unified-extensions-item-row-wrapper:is(:hover, :focus-within)
+.unified-extensions-item-action-button {
+  --uc-mtb-visible-dot: 0px;
+  --uc-mtb-icon-opacity: 1;
+  --uc-mtb-icon-scale: 1;
+}
+
+
+/* ============================================================================
+   07. EXTENSION BADGES — HOVER ONLY
+
+   Hides the notification count until its extension is hovered.
+   Does not affect Zen Library download progress.
+   ============================================================================ */
+
+#nav-bar #nav-bar-customization-target
+:is(
+  .webextension-browser-action,
+  .unified-extensions-item-action-button,
+  [data-extensionid]
+) .toolbarbutton-badge {
+  opacity: 0 !important;
+
+  transform: translateY(2px) scale(0.78) !important;
+  transform-origin: center center !important;
+
+  pointer-events: none !important;
+
+  transition:
+    opacity 165ms ease,
+    transform 200ms cubic-bezier(.22, 1, .36, 1) !important;
+}
+
+/* Reveal notification count on its own button hover/focus/open. */
+
+#nav-bar #nav-bar-customization-target
+:is(
+  .webextension-browser-action,
+  .unified-extensions-item-action-button,
+  [data-extensionid]
+):is(
+  :hover,
+  :focus-visible,
+  :focus-within,
+  [open]
+) .toolbarbutton-badge {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Support nested WebExtension row wrappers. */
+
+#nav-bar #nav-bar-customization-target
+.unified-extensions-item-row-wrapper:is(:hover, :focus-within)
+:is(
+  .webextension-browser-action,
+  .unified-extensions-item-action-button,
+  [data-extensionid]
+) .toolbarbutton-badge {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+
+/* ============================================================================
+   08. ZEN SITE DATA OPEN STATE
+   ============================================================================ */
+
+#identity-box:is([open], [aria-expanded="true"])
+#zen-site-data-icon-button,
+#zen-site-data-icon-button:is(
+  [open],
+  [aria-expanded="true"]
+) {
+  --uc-mtb-visible-dot: 0px;
+  --uc-mtb-icon-opacity: 1;
+  --uc-mtb-icon-scale: 1;
+}
+
+
+/* ============================================================================
+   09. ZEN LIBRARY — NATIVE HOVER ANIMATION
+
+   Only customize its idle state.
+   Never modify native sprite keyframes or download progress.
+   ============================================================================ */
+
+#zen-library-button:not(:is(
+  :hover,
+  :focus-visible,
+  :focus-within,
+  [open],
+  [checked="true"],
+  [attention],
+  [badge-status]
+)) {
+  background-image: radial-gradient(
+    circle at center,
+    var(--uc-mtb-dot-color) 0 2px,
+    color-mix(
+      in srgb,
+      var(--uc-mtb-dot-color) 65%,
+      transparent
+    ) 2.35px,
+    transparent 2.85px
+  ) !important;
+
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: 7px 7px !important;
+}
+
+/* Hide idle artwork without changing Zen's native sprite animation. */
+
+#zen-library-button:not(:is(
+  :hover,
+  :focus-visible,
+  :focus-within,
+  [open],
+  [checked="true"],
+  [attention],
+  [badge-status]
+)) > :is(
+  .toolbarbutton-icon,
+  .zen-library-sprite
+) {
+  opacity: 0 !important;
+}
+
+
+/* ============================================================================
+   10. PRESS FEEDBACK
+   ============================================================================ */
+
+:is(
+  #nav-bar #nav-bar-customization-target .toolbarbutton-1,
+  #zen-sidebar-top-buttons .toolbarbutton-1,
+  #zen-sidebar-foot-buttons .toolbarbutton-1,
+  #zen-sidebar-bottom-buttons .toolbarbutton-1,
+  #PanelUI-menu-button
+):not(#zen-library-button):active .toolbarbutton-icon {
+  transform: scale(0.94) !important;
+}
+
+#zen-site-data-icon-button:active > :first-child {
+  transform: scale(0.94) !important;
+}
+
+
+/* ============================================================================
+   11. IMPORTANT STATUS INDICATORS
+   ============================================================================ */
+
+#downloads-button[attention],
+#PanelUI-menu-button[badge-status] {
+  --uc-mtb-visible-dot: 0px;
+  --uc-mtb-icon-opacity: 1;
+  --uc-mtb-icon-scale: 1;
+}
+
+
+/* ============================================================================
+   12. TOOLBAR CUSTOMIZATION MODE
+   ============================================================================ */
+
+#main-window[customizing] :is(
+  #nav-bar #nav-bar-customization-target .toolbarbutton-1,
+  #zen-sidebar-top-buttons .toolbarbutton-1,
+  #zen-sidebar-foot-buttons .toolbarbutton-1,
+  #zen-sidebar-bottom-buttons .toolbarbutton-1,
+  #PanelUI-menu-button,
+  #zen-site-data-icon-button
+) {
+  --uc-mtb-visible-dot: 0px;
+  --uc-mtb-icon-opacity: 1;
+  --uc-mtb-icon-scale: 1;
+}
+
+#main-window[customizing] #zen-library-button {
+  background-image: none !important;
+}
+
+#main-window[customizing]
+#zen-library-button > :is(
+  .toolbarbutton-icon,
+  .zen-library-sprite
+) {
+  opacity: revert !important;
+}
+
+#main-window[customizing]
+#nav-bar #nav-bar-customization-target
+:is(
+  .webextension-browser-action,
+  .unified-extensions-item-action-button,
+  [data-extensionid]
+) .toolbarbutton-badge {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+
+/* ============================================================================
+   13. REDUCED MOTION
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    #nav-bar #nav-bar-customization-target .toolbarbutton-1,
+    #zen-sidebar-top-buttons .toolbarbutton-1,
+    #zen-sidebar-foot-buttons .toolbarbutton-1,
+    #zen-sidebar-bottom-buttons .toolbarbutton-1,
+    #PanelUI-menu-button,
+    #zen-site-data-icon-button
+  ),
+  :is(
+    #nav-bar #nav-bar-customization-target .toolbarbutton-1,
+    #zen-sidebar-top-buttons .toolbarbutton-1,
+    #zen-sidebar-foot-buttons .toolbarbutton-1,
+    #zen-sidebar-bottom-buttons .toolbarbutton-1,
+    #PanelUI-menu-button
+  ) .toolbarbutton-icon,
+  #zen-site-data-icon-button > :first-child,
+  #nav-bar #nav-bar-customization-target
+  :is(
+    .webextension-browser-action,
+    .unified-extensions-item-action-button,
+    [data-extensionid]
+  ) .toolbarbutton-badge {
+    transition: none !important;
+  }
+}

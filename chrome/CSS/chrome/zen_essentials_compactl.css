@@ -1,0 +1,308 @@
+
+/* ============================================================================
+   ZEN COMPACT ESSENTIALS — v2.3
+   Six Columns | Balanced Grid | Symmetrical Spacing
+
+   FIXES:
+   - Correct the left-aligned Essentials grid.
+   - Compensate for unused space on the right.
+   - Distribute six square tabs evenly.
+   - Preserve original hover and selected states.
+   - Keep favicon sizes consistent.
+   - Prevent stretched tab backgrounds.
+
+   INSTALL:
+   Replace ONLY the previous Essentials stylesheet.
+   Keep your other userChrome.css customizations.
+   ============================================================================ */
+
+/* ============================================================================
+   01. CONFIGURATION
+   ============================================================================ */
+
+#zen-essentials {
+  --zec-columns: 6;
+
+  /* Grid spacing */
+  --zec-gap: 2px;
+  --zec-padding: 4px;
+
+  /* Compensates for the unused right-side space in the current Zen sidebar.
+     Adjust this value if your sidebar layout or Zen Mod changes. */
+  --zec-extra-inline: 12px;
+
+  /* Favicon */
+  --zec-icon: 18px;
+
+  /* Appearance */
+  --zec-radius: 6px;
+}
+
+/* ============================================================================
+   02. BALANCED SIX-COLUMN GRID
+   ============================================================================ */
+
+#zen-essentials > .zen-essentials-container:not([hidden]) {
+  display: grid !important;
+
+  grid-template-columns:
+    repeat(var(--zec-columns), minmax(0, 1fr)) !important;
+
+  grid-auto-flow: row !important;
+  grid-auto-rows: auto !important;
+
+  column-gap: var(--zec-gap) !important;
+  row-gap: var(--zec-gap) !important;
+
+  /* Fill the actual available width, including the unused right inset. */
+  box-sizing: border-box !important;
+
+  width: calc(100% + var(--zec-extra-inline)) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+
+  /* Symmetrical inner padding */
+  padding-inline: var(--zec-padding) !important;
+  padding-block: 3px !important;
+
+  margin: 0 !important;
+
+  /* Equal distribution */
+  justify-content: center !important;
+  justify-items: stretch !important;
+
+  align-content: start !important;
+  align-items: start !important;
+
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+
+  overflow: visible !important;
+}
+
+/* ============================================================================
+   03. SQUARE ESSENTIAL TABS
+   ============================================================================ */
+
+#zen-essentials > .zen-essentials-container:not([hidden])
+> .tabbrowser-tab[zen-essential] {
+  --tab-min-height: 0px !important;
+  --zen-tab-min-height: 0px !important;
+
+  box-sizing: border-box !important;
+
+  display: block !important;
+  position: relative !important;
+
+  grid-column: auto !important;
+  grid-row: auto !important;
+
+  justify-self: stretch !important;
+  align-self: start !important;
+
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+
+  aspect-ratio: 1 / 1 !important;
+
+  flex: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+
+  overflow: hidden !important;
+}
+
+/* ============================================================================
+   04. TAB STACK
+   ============================================================================ */
+
+#zen-essentials > .zen-essentials-container:not([hidden])
+> .tabbrowser-tab[zen-essential] > .tab-stack {
+  position: relative !important;
+
+  display: grid !important;
+
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+
+  box-sizing: border-box !important;
+
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  overflow: hidden !important;
+}
+
+/* ============================================================================
+   05. BACKGROUND AND CONTENT
+   ============================================================================ */
+
+#zen-essentials > .zen-essentials-container:not([hidden])
+> .tabbrowser-tab[zen-essential] > .tab-stack > :is(
+  .tab-background,
+  .tab-content
+) {
+  grid-area: 1 / 1 !important;
+
+  box-sizing: border-box !important;
+
+  width: 100% !important;
+  height: 100% !important;
+
+  min-width: 0 !important;
+  min-height: 0 !important;
+
+  max-width: 100% !important;
+  max-height: 100% !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  justify-self: stretch !important;
+  align-self: stretch !important;
+}
+
+/* Preserve Zen's native background and selection colors. */
+
+#zen-essentials > .zen-essentials-container:not([hidden])
+> .tabbrowser-tab[zen-essential]
+> .tab-stack > .tab-background {
+  border-radius: var(--zec-radius) !important;
+}
+
+/* ============================================================================
+   06. CENTER ICON CONTENT
+   ============================================================================ */
+
+#zen-essentials > .zen-essentials-container:not([hidden])
+> .tabbrowser-tab[zen-essential]
+> .tab-stack > .tab-content {
+  display: flex !important;
+
+  flex-direction: row !important;
+
+  align-items: center !important;
+  justify-content: center !important;
+
+  gap: 0 !important;
+
+  overflow: hidden !important;
+}
+
+/* ============================================================================
+   07. FAVICON STACK
+   ============================================================================ */
+
+#zen-essentials > .zen-essentials-container:not([hidden])
+> .tabbrowser-tab[zen-essential] .tab-icon-stack {
+  box-sizing: border-box !important;
+  position: relative !important;
+
+  width: var(--zec-icon) !important;
+  height: var(--zec-icon) !important;
+
+  min-width: var(--zec-icon) !important;
+  min-height: var(--zec-icon) !important;
+
+  max-width: var(--zec-icon) !important;
+  max-height: var(--zec-icon) !important;
+
+  flex: none !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* ============================================================================
+   08. FAVICON IMAGE
+   ============================================================================ */
+
+#zen-essentials > .zen-essentials-container:not([hidden])
+> .tabbrowser-tab[zen-essential] .tab-icon-image {
+  width: var(--zec-icon) !important;
+  height: var(--zec-icon) !important;
+
+  min-width: var(--zec-icon) !important;
+  min-height: var(--zec-icon) !important;
+
+  max-width: var(--zec-icon) !important;
+  max-height: var(--zec-icon) !important;
+
+  object-fit: contain !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ============================================================================
+   09. HIDE UNUSED CONTROLS
+   ============================================================================ */
+
+#zen-essentials > .zen-essentials-container:not([hidden])
+> .tabbrowser-tab[zen-essential] :is(
+  .tab-label-container,
+  .tab-close-button,
+  .tab-reset-button,
+  .tab-reset-pin-button,
+  .tab-note-icon
+) {
+  display: none !important;
+}
+
+/* ============================================================================
+   10. AUDIO INDICATOR
+   ============================================================================ */
+
+#zen-essentials > .zen-essentials-container:not([hidden])
+> .tabbrowser-tab[zen-essential] .tab-audio-button {
+  position: absolute !important;
+
+  right: 0 !important;
+  bottom: 0 !important;
+
+  max-width: 10px !important;
+  max-height: 10px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ============================================================================
+   11. COLLAPSED SIDEBAR
+   ============================================================================ */
+
+:root[zen-sidebar-expanded="false"]
+#zen-essentials {
+  --zec-extra-inline: 0px;
+}
+
+:root[zen-sidebar-expanded="false"]
+#zen-essentials > .zen-essentials-container:not([hidden]) {
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr)) !important;
+}
+
+/* ============================================================================
+   12. REDUCED MOTION
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  #zen-essentials > .zen-essentials-container:not([hidden])
+  > .tabbrowser-tab[zen-essential] {
+    transition: none !important;
+  }
+}
