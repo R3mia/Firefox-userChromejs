@@ -27,11 +27,11 @@ A collection of browser-chrome customizations for **Firefox** and **Zen Browser*
 | 🖱️ Tabs | [**Double Click Duplicate Tab**](#duplicate-tab) | Double-click a tab to duplicate it. |
 | 🧹 Memory | [**Smart Firefox Memory Cleaner**](#periodic-memory) | Scheduled cleanup, toolbar controls, and a tab/process memory monitor. |
 | 🧠 Memory | [**Extreme Memory Controller — obsolete**](#extreme-memory) | Older inactive-tab suspension and discard experiment. |
-| 🕒 Memory | [**Legacy Periodic Memory Cleaner**](#legacy-memory) | Original fixed two-minute cleanup script. |
+| 🕒 Memory | [**Legacy Periodic Memory Cleaner — obsolete**](#legacy-memory) | Original fixed two-minute cleanup script. |
 | 🌈 YouTube | [**YTColors26**](#yt-colors) | Color video cards by upload age and dim older cards. |
 | ▶️ YouTube | [**YTPlaybackFixer**](#yt-playback) | Attempt playback recovery and preferred-quality selection. |
 | 🔒 Locks | [**Password Lock Screen**](#password-lock) | Password overlay with a manual shortcut and startup-lock option. |
-| 🔑 Locks | [**Startup Password Prompt**](#startup-password) | Require a password when the script loads; quit on failure. |
+| 🔑 Locks | [**Startup Password Lock**](#startup-password) | Native password dialog with three attempts and one check per browser process. |
 | 🖌️ CSS | [**Browser appearance**](#browser-css) | Toolbar dots, animated URL bar, compact Essentials, and navigation tweaks. |
 | 🧩 CSS | [**Content pages**](#content-css) | Styles for Add-ons Manager, about:config, private browsing, and images. |
 | ⚙️ Preferences | [**user.js & prefs cleaner**](#preferences) | Optional profile preferences and a Windows preference-cleanup tool. |
@@ -225,7 +225,7 @@ Older experimental tab management: monitors inactivity, detects audio/Picture-in
 
 </div>
 
-**File:** [`Periodically_clean_Firefox_memory.js`](chrome/JS/Periodically_clean_Firefox_memory.js) . **Status:** Obsolete
+**File:** [`Periodically_clean_Firefox_memory.js`](chrome/JS/Periodically_clean_Firefox_memory.js) · **Status:** Obsolete
 
 The original script requests garbage collection and memory minimization every **2 minutes**. The source credits [garywill/firefoxtaskmonitor](https://github.com/garywill/firefoxtaskmonitor) and notes testing with Firefox 102 and xiaoxiaoflood's loader.
 
@@ -324,18 +324,31 @@ This is a convenience overlay. The password is stored in the script as plain tex
 
 <div align="center">
 
-# 🔑 · Startup Password Prompt — Password check on load
+# 🔑 · Startup Password Lock — Native password dialog
 
 </div>
 
-**File:** [`StartupPwdLock.uc.js`](chrome/JS/StartupPwdLock.uc.js)
+<div align="center">
 
-Shows a native password prompt when the loader executes the script. Change `CUSTOM_PASSWORD` before enabling it; the included value is **`123456`**.
+<img width="490" height="233" alt="Zen startup password dialog with an empty password field and disabled OK button" src="docs/images/zen-startup-lock.png" />
+
+</div>
+
+**File:** [`StartupPwdLock.uc.js`](chrome/JS/StartupPwdLock.uc.js) · **Version:** 2.0.1
+
+Shows a native **Unlock Zen** dialog with English text and a focused password field.
+
+- Allows **3 incorrect non-empty submissions** by default; the dialog displays the remaining attempts.
+- Disables **OK** while the field is empty. Pressing **Enter** on an empty field keeps the dialog open and focuses the field without consuming an attempt.
+- Checks the password **once per browser process**, with a guard against duplicate script copies. Background-task mode is skipped.
+- Accepts the correct password to continue; startup hooks handle the prompt when the script is loaded early, and it prompts immediately if startup has already finished.
+
+**Before enabling:** Change `CUSTOM_PASSWORD` at the top of the file. The included value is **`123456`**. Change `MAX_ATTEMPTS` to adjust the attempt limit.
 
 > [!CAUTION]
-> Canceling, entering a wrong password, or encountering an error calls **force quit for the whole browser**. There is no retry loop. The script has no once-per-session guard, so a loader that runs it in each browser window can prompt again for new windows.
+> Canceling the dialog, exhausting the attempt limit, or encountering a script error calls **force quit for the whole browser**. The password is stored in the script as plain text; this is a convenience lock, with no profile encryption or operating-system access control.
 
-Choose the lock method that matches your workflow. Enabling both lock scripts can produce multiple password prompts. This script also stores its password in plain text.
+Choose the lock method that matches your workflow. Enabling both lock scripts can produce multiple password prompts.
 
 [↑ Back to top](#top)
 
@@ -349,6 +362,14 @@ Choose the lock method that matches your workflow. Enabling both lock scripts ca
 </div>
 
 **Entry file:** [`chrome/userChrome.css`](chrome/userChrome.css) · **Modules:** [`chrome/CSS/chrome/`](chrome/CSS/chrome)
+
+<div align="center">
+
+<img width="201" height="216" alt="Compact six-column Essentials grid in the expanded Zen sidebar" src="docs/images/zen-essentials.png" />
+
+<p><strong>Compact Essentials</strong> · Expanded Zen sidebar</p>
+
+</div>
 
 The entry file imports the six modules below. Comment out an import to disable that customization, then restart.
 
@@ -438,7 +459,7 @@ The optional `user.js` contains Zen interface, scrolling, network, memory, media
 | Zen folder children stay uncolored | **Highlight Folder → Apply folder color to → Folder + all tabs & subfolders**. |
 | Colors disappear on restart | Check restored tab sessions and unchanged Zen folder IDs. |
 | Playback quality does not change | Verify actual quality in **Stats for Nerds**; YouTube may override requests. |
-| Browser quits after a password prompt | The startup-password script force-quits on cancel, wrong password, or errors. Check `CUSTOM_PASSWORD` before enabling it. |
+| Browser quits after the startup password dialog | v2.0.1 force-quits on cancel, after the configured number of incorrect submissions, or on a script error. Check `CUSTOM_PASSWORD` and `MAX_ATTEMPTS`. |
 | Tabs reload unexpectedly | Check the obsolete memory controller and `browser.tabs.unloadOnLowMemory` in the optional preference preset. |
 
 **Browser Console:** `Ctrl + Shift + J` — include relevant errors, your Firefox/Zen version, loader, and component name when [reporting an issue](https://github.com/R3mia/Firefox-userChromejs/issues).
